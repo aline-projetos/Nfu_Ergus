@@ -1,0 +1,10 @@
+{
+  "name": "nfu-ergus",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"cd backend && go run ./cmd/api\" \"cd frontend && npm run dev\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.0"
+  }
+}
