@@ -228,7 +228,6 @@ export function ClientsTable() {
       }
 
       // removemos da lista atual
-      setClients(prev => prev.filter(c => c.id !== deleteId));
       toast.success('Cliente inativado com sucesso');
     } catch (err: any) {
       console.error(err);
@@ -437,7 +436,7 @@ export function ClientsTable() {
       <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir cliente?</AlertDialogTitle>
+            <AlertDialogTitle>Desativar cliente?</AlertDialogTitle>
             <AlertDialogDescription>
               Esta ação irá inativar o cliente no sistema.
             </AlertDialogDescription>

@@ -56,42 +56,38 @@ func normalizeDocument(doc string) string {
 	return b.String()
 }
 
-func validateTenantInput(in *TenantInput) (string, string, bool, string) {
+func validateTenantInput(in *TenantInput) (string, string, string, string) {
 	// retorna: name, document, documentType, errorMsg
 
 	name := strings.TrimSpace(in.Name)
 	if name == "" {
-		return "", "", false, "name é obrigatório"
+		return "", "", "", "name é obrigatório"
 	}
 
 	rawDoc := strings.TrimSpace(in.Document)
 	if rawDoc == "" {
-		return "", "", false, "document é obrigatório"
+		return "", "", "", "document é obrigatório"
 	}
 
 	doc := normalizeDocument(rawDoc)
 	if len(doc) != 11 && len(doc) != 14 {
-		return "", "", false, "document deve ter 11 dígitos (CPF) ou 14 dígitos (CNPJ)"
+		return "", "", "", "document deve ter 11 dígitos (CPF) ou 14 dígitos (CNPJ)"
 	}
 
 	docType := strings.ToUpper(strings.TrimSpace(in.DocumentType))
 	if docType != "CPF" && docType != "CNPJ" {
-		return "", "", false, "document_type deve ser CPF ou CNPJ"
+		return "", "", "", "document_type deve ser CPF ou CNPJ"
 	}
 
 	if docType == "CPF" && len(doc) != 11 {
-		return "", "", false, "document_type CPF exige document com 11 dígitos"
+		return "", "", "", "document_type CPF exige document com 11 dígitos"
 	}
 	if docType == "CNPJ" && len(doc) != 14 {
-		return "", "", false, "document_type CNPJ exige document com 14 dígitos"
+		return "", "", "", "document_type CNPJ exige document com 14 dígitos"
 	}
 
-	ativo := true
-	if in.Ativo != nil {
-		ativo = *in.Ativo
-	}
-
-	return name, doc, ativo, docType
+	// sem erro
+	return name, doc, docType, ""
 }
 
 // ------------------------

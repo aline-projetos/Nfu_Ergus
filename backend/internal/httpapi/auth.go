@@ -38,6 +38,8 @@ type loginUserInfo struct {
 	Email        string `json:"email"`
 	Name         string `json:"name"`
 	IsSuperAdmin bool   `json:"isSuperAdmin"`
+	UserType     string `json:"type"`
+	TenantID     string `json:"tenantId,omitempty"`
 }
 
 // POST /auth/login
@@ -69,6 +71,8 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		username     string
 		passwordHash string
 		isSuperAdmin bool
+		userType     string
+		tenantID     string
 	)
 
 	err := h.DB.QueryRow(`
@@ -77,7 +81,9 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 			useremail,
 			username,
 			password_hash,
-			is_super_admin
+			is_super_admin,
+			type,
+			tenant_id
 		FROM users
 		WHERE LOWER(useremail) = LOWER($1)
 		  AND ativo = TRUE
@@ -87,6 +93,8 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		&username,
 		&passwordHash,
 		&isSuperAdmin,
+		&userType,
+		&tenantID,
 	)
 
 	if err == sql.ErrNoRows {
@@ -118,6 +126,8 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 			Email:        dbEmail.String,
 			Name:         username,
 			IsSuperAdmin: isSuperAdmin,
+			UserType:     userType,
+			TenantID:     tenantID,
 		},
 	}
 

@@ -56,6 +56,10 @@ func main() {
 	tenantHandler := httpapi.NewTenantHandler(pg)
 	tenantHandler.RegisterRoutes(mux)
 
+	// Users
+	userHandler := httpapi.NewUserHandler(pg)
+	userHandler.RegisterRoutes(mux)
+
 	// handlers de categoria
 	catHandler := httpapi.NewCategoryHandler(pg)
 	catHandler.RegisterRoutes(mux)

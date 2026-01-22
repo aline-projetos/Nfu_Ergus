@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
   Pencil, 
@@ -11,7 +11,8 @@ import {
   UserCog,
   Plus,
   Search,
-  Shield
+  Shield,
+  LockKeyhole
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
@@ -31,15 +32,35 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { User, mockUsers, userTypes } from '@/data/mockUsers';
+import { userTypes } from '@/data/mockUsers';
 import { toast } from 'sonner';
 
 type SortField = 'codigo' | 'username' | 'type';
 type SortDirection = 'asc' | 'desc';
 type FilterStatus = 'all' | 'active' | 'inactive';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL;
+const TOKEN_KEY = 'ergus_token';
+
+interface UserRow {
+  id: string;
+  tenantId: string;
+  tenantName?: string;      // nome amigável do tenant
+  codigo: number;
+  username: string;
+  type: string;
+  ativo: boolean;
+  isSuperAdmin?: boolean;   // flag vinda do backend
+  useremail?: string;
+}
+
+interface TenantOption {
+  id: string;
+  name: string;
+}
+
 export function UsersTable() {
-  const [users, setUsers] = useState<User[]>(mockUsers);
+  const [users, setUsers] = useState<UserRow[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -49,19 +70,142 @@ export function UsersTable() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
+  const [isLoading, setIsLoading] = useState(true);
+  const [tenants, setTenants] = useState<TenantOption[]>([]);
   const navigate = useNavigate();
+  const [resetPasswordDialogOpen, setResetPasswordDialogOpen] = useState(false);
+  const [resetPasswordUser, setResetPasswordUser] = useState<{ username: string; password: string } | null>(null);
+  const tenantId = JSON.parse(localStorage.getItem('ergus_user') || '{}').tenantId;
+
+  const handleResetPassword = async (userId: string) => {
+    try {
+      const token = localStorage.getItem('ergus_token');
+      const resp = await fetch(`${API_BASE_URL}/users/${userId}/reset-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+
+      if (!resp.ok) {
+        const text = await resp.text();
+        throw new Error(text || 'Erro ao resetar senha');
+      }
+
+      const data = await resp.json() as { username: string; password: string };
+      setResetPasswordUser({ username: data.username, password: data.password });
+      setResetPasswordDialogOpen(true);
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || 'Erro ao resetar senha');
+    }
+  };
+
+
+  // Carrega tenants
+    useEffect(() => {
+      const fetchTenants = async () => {
+        try {
+          const token = localStorage.getItem(TOKEN_KEY);
+          const resp = await fetch(`${API_BASE_URL}/tenants`, {
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+          });
+  
+          if (!resp.ok) {
+            const text = await resp.text();
+            throw new Error(text || 'Erro ao buscar usuarios');
+          }
+  
+          const data: Array<{ id: string; name: string }> = await resp.json();
+          setTenants(data.map(t => ({ id: t.id, name: t.name })));
+        } catch (err: any) {
+          console.error(err);
+          toast.error(err.message || 'Erro ao carregar lista de usuarios');
+        }
+      };
+  
+      fetchTenants();
+    }, []);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      setIsLoading(true);
+      try {
+        const token = localStorage.getItem(TOKEN_KEY);
+
+        const resp = await fetch(`${API_BASE_URL}/users`, {
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        });
+
+        if (!resp.ok) {
+          const text = await resp.text();
+          throw new Error(text || 'Erro ao carregar usuários');
+        }
+
+        const data: Array<{
+          id: string;
+          tenantId: string;
+          tenant_name?: string;
+          codigo: number;
+          username: string;
+          type: string;
+          ativo: boolean;
+          is_super_admin?: boolean;
+          useremail?: string;
+        }> = await resp.json();
+
+        const dataFilter = data.filter(item => item.tenantId === tenantId);
+        const mapped: UserRow[] = dataFilter.map(item => ({
+          id: item.id,
+          tenantId: item.tenantId,
+          tenantName: item.tenant_name ?? '',
+          codigo: item.codigo,
+          username: item.username,
+          type: item.type,
+          ativo: item.ativo,
+          isSuperAdmin: item.is_super_admin ?? false,
+          useremail: item.useremail,
+        }));
+
+        setUsers(mapped);
+      } catch (err: any) {
+        console.error(err);
+        toast.error(err.message || 'Erro ao carregar usuários');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchUsers();
+  }, []);
 
   const filteredUsers = users.filter(user => {
-    const matchesSearch = user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (user.tenant_name?.toLowerCase().includes(searchTerm.toLowerCase()));
+    const term = searchTerm.toLowerCase();
+
+    const matchesSearch =
+      term === '' ||
+      user.username.toLowerCase().includes(term) ||
+      user.codigo?.toString().includes(term) ||
+      (user.tenantName ?? '').toLowerCase().includes(term);
+
     const matchesType = filterType === 'all' || user.type === filterType;
-    const matchesStatus = filterStatus === 'all' || 
-      (filterStatus === 'active' && user.ativo) || 
+
+    const matchesStatus =
+      filterStatus === 'all' ||
+      (filterStatus === 'active' && user.ativo) ||
       (filterStatus === 'inactive' && !user.ativo);
+
     return matchesSearch && matchesType && matchesStatus;
   });
 
-  const totalPages = Math.ceil(filteredUsers.length / rowsPerPage);
+  const totalPages = Math.ceil(filteredUsers.length / rowsPerPage) || 1;
   const startIndex = (currentPage - 1) * rowsPerPage;
   const endIndex = startIndex + rowsPerPage;
 
@@ -76,7 +220,7 @@ export function UsersTable() {
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
-      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+      setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'));
     } else {
       setSortField(field);
       setSortDirection('asc');
@@ -99,25 +243,88 @@ export function UsersTable() {
     }
   };
 
-  const handleToggleActive = (id: string, checked: boolean) => {
-    setUsers(prev => prev.map(u => 
-      u.id === id ? { ...u, ativo: checked } : u
-    ));
-    toast.success(checked ? 'Usuário ativado' : 'Usuário desativado');
+  const handleToggleActive = async (id: string, checked: boolean) => {
+    const user = users.find(u => u.id === id);
+    if (!user) return;
+
+    // atualização otimista
+    setUsers(prev =>
+      prev.map(u => (u.id === id ? { ...u, ativo: checked } : u)),
+    );
+
+    try {
+      const token = localStorage.getItem(TOKEN_KEY);
+
+      const payload = {
+        tenantId: user.tenantId,
+        codigo: user.codigo,
+        username: user.username,
+        type: user.type,
+        ativo: checked,
+        useremail: user.useremail,
+      };
+
+      const resp = await fetch(`${API_BASE_URL}/users/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!resp.ok) {
+        const text = await resp.text();
+        throw new Error(text || 'Erro ao atualizar usuário');
+      }
+
+      toast.success(checked ? 'Usuário ativado' : 'Usuário desativado');
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || 'Erro ao atualizar status do usuário');
+
+      // rollback
+      setUsers(prev =>
+        prev.map(u => (u.id === id ? { ...u, ativo: !checked } : u)),
+      );
+    }
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!deleteId) return;
-    setUsers(prev => prev.filter(u => u.id !== deleteId));
-    toast.success('Usuário excluído com sucesso');
-    setDeleteId(null);
+
+    try {
+      const token = localStorage.getItem(TOKEN_KEY);
+
+      const resp = await fetch(`${API_BASE_URL}/users/${deleteId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+
+      if (!resp.ok) {
+        const text = await resp.text();
+        throw new Error(text || 'Erro ao excluir usuário');
+      }
+
+      setUsers(prev => prev.filter(u => u.id !== deleteId));
+      toast.success('Usuário inativado com sucesso');
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || 'Erro ao excluir usuário');
+    } finally {
+      setDeleteId(null);
+    }
   };
 
   const getTypeLabel = (type: string) => {
     return userTypes.find(t => t.value === type)?.label || type;
   };
 
-  const isAllSelected = paginatedUsers.length > 0 && 
+  const isAllSelected =
+    paginatedUsers.length > 0 &&
     paginatedUsers.every(u => selectedIds.includes(u.id));
 
   const SortButton = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
@@ -126,9 +333,11 @@ export function UsersTable() {
       className="flex items-center gap-1 hover:text-foreground transition-colors group"
     >
       {children}
-      <ArrowUpDown className={`w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity ${
-        sortField === field ? 'opacity-100 text-primary' : ''
-      }`} />
+      <ArrowUpDown
+        className={`w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity ${
+          sortField === field ? 'opacity-100 text-primary' : ''
+        }`}
+      />
     </button>
   );
 
@@ -147,7 +356,7 @@ export function UsersTable() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <input
                 type="text"
-                placeholder="Buscar usuário ou cliente..."
+                placeholder="Buscar por código, usuário ou cliente..."
                 value={searchTerm}
                 onChange={(e) => {
                   setSearchTerm(e.target.value);
@@ -157,7 +366,7 @@ export function UsersTable() {
               />
             </div>
           </div>
-          
+
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Tipo:</span>
@@ -171,7 +380,9 @@ export function UsersTable() {
               >
                 <option value="all">Todos</option>
                 {userTypes.map(type => (
-                  <option key={type.value} value={type.value}>{type.label}</option>
+                  <option key={type.value} value={type.value}>
+                    {type.label}
+                  </option>
                 ))}
               </select>
             </div>
@@ -200,7 +411,7 @@ export function UsersTable() {
                 <th className="w-12 p-4">
                   <Checkbox
                     checked={isAllSelected}
-                    onCheckedChange={handleSelectAll}
+                    onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
                   />
                 </th>
                 <th className="p-4 text-left text-sm font-medium text-muted-foreground">
@@ -210,13 +421,13 @@ export function UsersTable() {
                   <SortButton field="username">Usuário</SortButton>
                 </th>
                 <th className="p-4 text-left text-sm font-medium text-muted-foreground">
+                  Email
+                </th>
+                <th className="p-4 text-left text-sm font-medium text-muted-foreground">
                   <SortButton field="type">Tipo</SortButton>
                 </th>
                 <th className="p-4 text-left text-sm font-medium text-muted-foreground">
-                  Cliente
-                </th>
-                <th className="p-4 text-center text-sm font-medium text-muted-foreground">
-                  Super Admin
+                  Empresa
                 </th>
                 <th className="p-4 text-center text-sm font-medium text-muted-foreground">
                   Ativo
@@ -227,70 +438,93 @@ export function UsersTable() {
               </tr>
             </thead>
             <tbody>
-              {paginatedUsers.map((user) => (
-                <tr 
-                  key={user.id} 
-                  className={`table-row-hover border-b border-border last:border-b-0 ${
-                    selectedIds.includes(user.id) ? 'bg-primary/5' : ''
-                  }`}
-                >
-                  <td className="p-4">
-                    <Checkbox
-                      checked={selectedIds.includes(user.id)}
-                      onCheckedChange={(checked) => handleSelectOne(user.id, checked as boolean)}
-                    />
-                  </td>
-                  <td className="p-4 text-sm font-medium text-foreground">{user.codigo || '—'}</td>
-                  <td className="p-4 text-sm text-foreground">{user.username}</td>
-                  <td className="p-4 text-sm text-muted-foreground">{getTypeLabel(user.type)}</td>
-                  <td className="p-4 text-sm text-muted-foreground">{user.tenant_name || '—'}</td>
-                  <td className="p-4 text-center">
-                    {user.is_super_admin ? (
-                      <Badge variant="default" className="bg-primary/10 text-primary hover:bg-primary/20">
-                        <Shield className="w-3 h-3 mr-1" />
-                        Super
-                      </Badge>
-                    ) : (
-                      <Badge variant="secondary" className="text-muted-foreground">
-                        Normal
-                      </Badge>
-                    )}
-                  </td>
-                  <td className="p-4 text-center">
-                    <Switch
-                      checked={user.ativo}
-                      onCheckedChange={(checked) => handleToggleActive(user.id, checked)}
-                    />
-                  </td>
-                  <td className="p-4">
-                    <div className="flex items-center justify-center gap-1">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button
-                            onClick={() => navigate(`/cadastros/admin/usuarios/${user.id}/editar`)}
-                            className="p-1.5 rounded-md hover:bg-muted transition-colors"
-                          >
-                            <Pencil className="w-4 h-4 text-muted-foreground" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent>Editar usuário</TooltipContent>
-                      </Tooltip>
-                      
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button
-                            onClick={() => setDeleteId(user.id)}
-                            className="p-1.5 rounded-md hover:bg-destructive/10 transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4 text-destructive" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent>Excluir usuário</TooltipContent>
-                      </Tooltip>
-                    </div>
+              {isLoading ? (
+                <tr>
+                  <td colSpan={8} className="p-6 text-center text-sm text-muted-foreground">
+                    Carregando usuários...
                   </td>
                 </tr>
-              ))}
+              ) : paginatedUsers.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="p-6 text-center text-sm text-muted-foreground">
+                    Nenhum usuário encontrado.
+                  </td>
+                </tr>
+              ) : (
+                paginatedUsers.map((user) => (
+                  <tr
+                    key={user.id}
+                    className={`table-row-hover border-b border-border last:border-b-0 ${
+                      selectedIds.includes(user.id) ? 'bg-primary/5' : ''
+                    }`}
+                  >
+                    <td className="p-4">
+                      <Checkbox
+                        checked={selectedIds.includes(user.id)}
+                        onCheckedChange={(checked) => handleSelectOne(user.id, checked as boolean)}
+                      />
+                    </td>
+                    <td className="p-4 text-sm font-medium text-foreground">
+                      {user.codigo ?? '—'}
+                    </td>
+                    <td className="p-4 text-sm text-foreground">{user.username}</td>
+                    <td className="p-4 text-sm text-foreground">{user.useremail || '—'}</td>
+                    <td className="p-4 text-sm text-muted-foreground">
+                      {getTypeLabel(user.type)}
+                    </td>
+                    <td className="p-4 text-sm text-muted-foreground">
+                      {tenants.find(t => t.id === user.tenantId)?.name || user.tenantId || '—'}
+                    </td>
+                    <td className="p-4 text-center">
+                      <Switch
+                        checked={user.ativo}
+                        onCheckedChange={(checked) => handleToggleActive(user.id, checked)}
+                      />
+                    </td>
+                    <td className="p-4">
+                      <div className="flex items-center justify-center gap-1">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={() => handleResetPassword(user.id)}
+                              className="p-1.5 rounded-md hover:bg-muted transition-colors"
+                            >
+                              <LockKeyhole className="w-4 h-4 text-muted-foreground" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent>Resetar senha</TooltipContent>
+                        </Tooltip>
+
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={() =>
+                                navigate(`/cadastros/admin/usuarios/${user.id}/editar`)
+                              }
+                              className="p-1.5 rounded-md hover:bg-muted transition-colors"
+                            >
+                              <Pencil className="w-4 h-4 text-muted-foreground" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent>Editar usuário</TooltipContent>
+                        </Tooltip>
+
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={() => setDeleteId(user.id)}
+                              className="p-1.5 rounded-md hover:bg-destructive/10 transition-colors"
+                            >
+                              <Trash2 className="w-4 h-4 text-destructive" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent>Excluir usuário</TooltipContent>
+                        </Tooltip>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -315,7 +549,11 @@ export function UsersTable() {
 
           <div className="flex items-center gap-4">
             <span className="text-sm text-muted-foreground">
-              {filteredUsers.length > 0 ? `${startIndex + 1}-${Math.min(endIndex, filteredUsers.length)} de ${filteredUsers.length}` : '0 de 0'}
+              {filteredUsers.length > 0
+                ? `${startIndex + 1}-${Math.min(endIndex, filteredUsers.length)} de ${
+                    filteredUsers.length
+                  }`
+                : '0 de 0'}
             </span>
 
             <div className="flex items-center gap-1">
@@ -371,6 +609,36 @@ export function UsersTable() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={resetPasswordDialogOpen} onOpenChange={setResetPasswordDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Nova senha gerada</AlertDialogTitle>
+            <AlertDialogDescription>
+              Usuário: <strong>{resetPasswordUser?.username}</strong>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="mt-4 p-3 rounded-lg bg-muted font-mono text-center text-lg">
+            {resetPasswordUser?.password}
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel>Fechar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (resetPasswordUser?.password) {
+                  navigator.clipboard.writeText(resetPasswordUser.password).catch(() => {});
+                  toast.success('Senha copiada para área de transferência');
+                }
+              }}
+            >
+              Copiar senha
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
 
       <Link to="/cadastros/admin/usuarios/novo" className="fab-button">
         <Plus className="w-6 h-6" />

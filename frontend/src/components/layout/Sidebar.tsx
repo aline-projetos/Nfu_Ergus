@@ -5,14 +5,10 @@ import {
   Package, 
   ChevronDown, 
   ChevronRight,
-  Tags,
-  Box,
   Receipt,
   ShoppingCart,
   BarChart3,
   FolderCog,
-  Users,
-  UserCog
 } from 'lucide-react';
 
 interface MenuItem {
@@ -50,6 +46,13 @@ export function Sidebar() {
   const location = useLocation();
   const [expandedItems, setExpandedItems] = useState<string[]>(['Catálogo']);
 
+  const user = localStorage.getItem('ergus_user');
+  const userType = user ? JSON.parse(user).type : null;
+  const userName = user ? JSON.parse(user).name : null;
+
+  const isAdmin = (userType || '').toLowerCase() === 'admin';
+  const isSupervisor = (userName || '').toLowerCase() === 'supervisor';
+
   const isActive = (path: string) => location.pathname === path;
   const isParentActive = (children?: { path: string }[]) => 
     children?.some(child => location.pathname.startsWith(child.path));
@@ -61,6 +64,32 @@ export function Sidebar() {
         : [...prev, label]
     );
   };
+
+  // 1) Se não for admin, remove o menu "Cadastros" inteiro
+  let filteredMenuItems: MenuItem[] = menuItems;
+
+  if (!isAdmin) {
+    filteredMenuItems = menuItems.filter(item => item.label !== 'Cadastros');
+  } else {
+    // 2) Se for admin, aplica a regra de "Clientes" só para supervisor
+    filteredMenuItems = menuItems.map((item) => {
+      if (item.label === 'Cadastros' && item.children) {
+        const filteredChildren = item.children.filter(child => {
+          if (child.label === 'Clientes' && !isSupervisor) {
+            return false; // esconde Clientes se não for supervisor
+          }
+          return true;
+        });
+
+        return {
+          ...item,
+          children: filteredChildren,
+        };
+      }
+
+      return item;
+    });
+  }
 
   return (
     <aside className="fixed left-0 top-0 h-screen w-64 bg-sidebar flex flex-col z-50">
@@ -76,7 +105,7 @@ export function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 overflow-y-auto scrollbar-thin">
         <ul className="space-y-1">
-          {menuItems.map((item) => (
+          {filteredMenuItems.map((item) => (
             <li key={item.label}>
               {item.children ? (
                 <div>
@@ -97,7 +126,7 @@ export function Sidebar() {
                     )}
                   </button>
                   
-                  {expandedItems.includes(item.label) && (
+                  {expandedItems.includes(item.label) && item.children && item.children.length > 0 && (
                     <ul className="mt-1 space-y-1">
                       {item.children.map((child) => (
                         <li key={child.path}>
