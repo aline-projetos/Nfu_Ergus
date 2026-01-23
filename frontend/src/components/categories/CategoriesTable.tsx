@@ -47,7 +47,6 @@ export function CategoriesTable() {
   const [loadingDelete, setLoadingDelete] = useState(false);
   const navigate = useNavigate();
 
-
   useEffect(() => {
     async function load() {
       try {

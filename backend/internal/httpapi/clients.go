@@ -141,6 +141,17 @@ func (h *TenantHandler) handleTenantByID(w http.ResponseWriter, r *http.Request)
 func (h *TenantHandler) CreateTenant(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
+	// exige sessão válida e super admin
+	sess, err := RequireSession(h.DB, r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+	if !sess.IsSuperAdmin {
+		http.Error(w, "apenas super administrador pode acessar este recurso", http.StatusForbidden)
+		return
+	}
+
 	var in TenantInput
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		http.Error(w, "JSON inválido", http.StatusBadRequest)
@@ -159,7 +170,7 @@ func (h *TenantHandler) CreateTenant(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var t Tenant
-	err := h.DB.QueryRow(`
+	err = h.DB.QueryRow(`
 		INSERT INTO tenants (name, document, document_type, ativo)
 		VALUES ($1, $2, $3, $4)
 		RETURNING id, name, document, document_type, ativo, created_at, updated_at
@@ -198,6 +209,13 @@ func (h *TenantHandler) CreateTenant(w http.ResponseWriter, r *http.Request) {
 // ------------------------
 
 func (h *TenantHandler) ListTenants(w http.ResponseWriter, r *http.Request) {
+	// exige sessão válida e super admin
+	_, err := RequireSession(h.DB, r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
 	// futuramente dá pra filtrar por ?ativo=true/false
 	rows, err := h.DB.Query(`
 		SELECT
@@ -250,9 +268,20 @@ func (h *TenantHandler) ListTenants(w http.ResponseWriter, r *http.Request) {
 // ------------------------
 
 func (h *TenantHandler) GetTenantByID(w http.ResponseWriter, r *http.Request, id string) {
+	// exige sessão válida e super admin
+	sess, err := RequireSession(h.DB, r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+	if !sess.IsSuperAdmin {
+		http.Error(w, "apenas super administrador pode acessar este recurso", http.StatusForbidden)
+		return
+	}
+
 	var t Tenant
 
-	err := h.DB.QueryRow(`
+	err = h.DB.QueryRow(`
 		SELECT
 			id,
 			name,
@@ -293,6 +322,17 @@ func (h *TenantHandler) GetTenantByID(w http.ResponseWriter, r *http.Request, id
 func (h *TenantHandler) UpdateTenant(w http.ResponseWriter, r *http.Request, id string) {
 	defer r.Body.Close()
 
+	// exige sessão válida e super admin
+	sess, err := RequireSession(h.DB, r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+	if !sess.IsSuperAdmin {
+		http.Error(w, "apenas super administrador pode acessar este recurso", http.StatusForbidden)
+		return
+	}
+
 	var in TenantInput
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		http.Error(w, "JSON inválido", http.StatusBadRequest)
@@ -311,7 +351,7 @@ func (h *TenantHandler) UpdateTenant(w http.ResponseWriter, r *http.Request, id 
 	}
 
 	var t Tenant
-	err := h.DB.QueryRow(`
+	err = h.DB.QueryRow(`
 		UPDATE tenants
 		   SET name          = $1,
 		       document      = $2,
@@ -363,9 +403,19 @@ func (h *TenantHandler) UpdateTenant(w http.ResponseWriter, r *http.Request, id 
 // ------------------------
 // DELETE /tenants/{id}
 // ------------------------
-// Aqui vamos fazer "soft delete": ativo = false
-// Assim você não quebra FKs de users, vendas, etc.
+// Soft delete: ativo = false
 func (h *TenantHandler) DeleteTenant(w http.ResponseWriter, r *http.Request, id string) {
+	// exige sessão válida e super admin
+	sess, err := RequireSession(h.DB, r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+	if !sess.IsSuperAdmin {
+		http.Error(w, "apenas super administrador pode acessar este recurso", http.StatusForbidden)
+		return
+	}
+
 	res, err := h.DB.Exec(`
 		UPDATE tenants
 		   SET ativo      = FALSE,

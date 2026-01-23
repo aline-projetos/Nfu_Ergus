@@ -39,23 +39,15 @@ type UserWithPassword struct {
 	Password string `json:"password"`
 }
 
-// UserInput é o payload de criação
+// UserInput é o payload de criação/edição
 type UserInput struct {
-	TenantID  *string `json:"tenantId"`        // opcional (usuário global)
-	Username  string  `json:"username"`        // obrigatório
-	UserEmail string  `json:"useremail"`       // obrigatório
-	Type      string  `json:"type"`            // obrigatório
-	Ativo     *bool   `json:"ativo,omitempty"` // opcional
+	Username  string `json:"username"`        // obrigatório
+	UserEmail string `json:"useremail"`       // obrigatório
+	Type      string `json:"type"`            // obrigatório
+	Ativo     *bool  `json:"ativo,omitempty"` // opcional
 }
 
-// UserUpdateInput é o payload de edição
-type UserUpdateInput struct {
-	TenantID  *string `json:"tenantId"`        // opcional (se quiser permitir mudar de tenant)
-	Username  string  `json:"username"`        // obrigatório
-	UserEmail string  `json:"useremail"`       // obrigatório
-	Type      string  `json:"type"`            // obrigatório
-	Ativo     *bool   `json:"ativo,omitempty"` // opcional
-}
+type UserUpdateInput = UserInput
 
 type UserHandler struct {
 	DB *sql.DB
@@ -119,36 +111,24 @@ func (h *UserHandler) generateNextUserCode(tenantID uuid.UUID) (int, error) {
 	return codigo, nil
 }
 
-// valida entrada de edição
-func validateUserCreateInput(in *UserInput) (tenantUUID *uuid.UUID, username, useremail, userType string, ativo bool, errMsg string) {
+// valida entrada de criação/edição (sem tenant aqui, tenant vem do header)
+func validateUserCreateInput(in *UserInput) (username, useremail, userType string, ativo bool, errMsg string) {
 	// username obrigatório
 	username = strings.TrimSpace(in.Username)
 	if username == "" {
-		return nil, "", "", "", false, "username é obrigatório"
+		return "", "", "", false, "username é obrigatório"
 	}
 	// useremail obrigatório
 	useremail = strings.TrimSpace(in.UserEmail)
 	if useremail == "" {
-		return nil, "", "", "", false, "email é obrigatório"
+		return "", "", "", false, "email é obrigatório"
 	}
 
 	// type obrigatório
 	userType = strings.TrimSpace(in.Type)
 	if userType == "" {
-		return nil, "", "", "", false, "type é obrigatório"
+		return "", "", "", false, "type é obrigatório"
 	}
-
-	// tenantId obrigatório
-	if in.TenantID == nil || strings.TrimSpace(*in.TenantID) == "" {
-		return nil, "", "", "", false, "tenantId é obrigatório"
-	}
-
-	// valida UUID do tenant
-	id, err := uuid.Parse(strings.TrimSpace(*in.TenantID))
-	if err != nil {
-		return nil, "", "", "", false, "tenantId inválido"
-	}
-	tenantUUID = &id
 
 	// ativo default true
 	ativo = true
@@ -156,7 +136,7 @@ func validateUserCreateInput(in *UserInput) (tenantUUID *uuid.UUID, username, us
 		ativo = *in.Ativo
 	}
 
-	return tenantUUID, username, useremail, userType, ativo, ""
+	return username, useremail, userType, ativo, ""
 }
 
 // -----------------------------------------------------------------------------
@@ -223,18 +203,35 @@ func (h *UserHandler) handleUserByID(w http.ResponseWriter, r *http.Request) {
 func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
+	// 🔒 exige token válido
+	if _, err := AuthenticateRequest(h.DB, r); err != nil {
+		http.Error(w, "não autorizado: "+err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	// 🏢 tenantId vem do header
+	tenantIDStr, err := GetTenantIDFromHeader(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	tenantUUID, err := uuid.Parse(tenantIDStr)
+	if err != nil {
+		http.Error(w, "tenantId inválido", http.StatusBadRequest)
+		return
+	}
+
 	var in UserInput
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		http.Error(w, "JSON inválido", http.StatusBadRequest)
 		return
 	}
 
-	tenantUUID, username, useremail, userType, ativo, errMsg := validateUserCreateInput(&in)
+	username, useremail, userType, ativo, errMsg := validateUserCreateInput(&in)
 	if errMsg != "" {
 		http.Error(w, errMsg, http.StatusBadRequest)
 		return
 	}
-	// daqui pra frente sabemos que tenantUUID != nil
 
 	// 1) gera senha aleatória + hash
 	password, err := generatePassword()
@@ -257,7 +254,7 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 3) gera próximo código do usuário para esse tenant
-	codigo, err := h.generateNextUserCode(*tenantUUID)
+	codigo, err := h.generateNextUserCode(tenantUUID)
 	if err != nil {
 		http.Error(w, "erro ao gerar código do usuário: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -292,7 +289,7 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 			updated_at,
 			useremail
 	`,
-		*tenantUUID,  // $1
+		tenantUUID,   // $1
 		codigo,       // $2
 		username,     // $3
 		passwordHash, // $4
@@ -338,10 +335,27 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 // -----------------------------------------------------------------------------
-// GET /users (lista, sem super admin)
+// GET /users (lista, por tenant, sem super admin)
 // -----------------------------------------------------------------------------
-
 func (h *UserHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
+
+	if _, err := AuthenticateRequest(h.DB, r); err != nil {
+		http.Error(w, "não autorizado: "+err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	tenantIDStr, err := GetTenantIDFromHeader(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	tenantUUID, err := uuid.Parse(tenantIDStr)
+	if err != nil {
+		http.Error(w, "tenantId inválido", http.StatusBadRequest)
+		return
+	}
+
 	rows, err := h.DB.Query(`
 		SELECT
 			id,
@@ -355,9 +369,10 @@ func (h *UserHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 			updated_at,
 			useremail
 		FROM users
-		WHERE is_super_admin = FALSE
+		WHERE tenant_id = $1
+		  AND is_super_admin = FALSE
 		ORDER BY username ASC
-	`)
+	`, tenantUUID)
 	if err != nil {
 		http.Error(w, "erro ao listar usuários: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -394,24 +409,31 @@ func (h *UserHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 		users = append(users, u)
 	}
 
-	if err := rows.Err(); err != nil {
-		http.Error(w, "erro ao iterar usuários: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(users)
 }
 
 // -----------------------------------------------------------------------------
-// GET /users/{id} (sem super admin)
+// GET /users/{id} (por tenant, sem super admin)
 // -----------------------------------------------------------------------------
 
 func (h *UserHandler) GetUserByID(w http.ResponseWriter, r *http.Request, id string) {
+	// 🔒 exige token válido
+	if _, err := AuthenticateRequest(h.DB, r); err != nil {
+		http.Error(w, "não autorizado: "+err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	tenantIDStr, err := GetTenantIDFromHeader(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	var u User
 	var tenantIDNullable *uuid.UUID
 
-	err := h.DB.QueryRow(`
+	err = h.DB.QueryRow(`
 		SELECT
 			id,
 			tenant_id,
@@ -425,9 +447,11 @@ func (h *UserHandler) GetUserByID(w http.ResponseWriter, r *http.Request, id str
 			useremail
 		FROM users
 		WHERE id = $1
+		  AND tenant_id = $2
 		  AND is_super_admin = FALSE
 	`,
 		id,
+		tenantIDStr,
 	).Scan(
 		&u.ID,
 		&tenantIDNullable,
@@ -466,13 +490,25 @@ func (h *UserHandler) GetUserByID(w http.ResponseWriter, r *http.Request, id str
 func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request, id string) {
 	defer r.Body.Close()
 
+	// 🔒 exige token válido
+	if _, err := AuthenticateRequest(h.DB, r); err != nil {
+		http.Error(w, "não autorizado: "+err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	tenantIDStr, err := GetTenantIDFromHeader(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	var in UserInput
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		http.Error(w, "JSON inválido", http.StatusBadRequest)
 		return
 	}
 
-	tenantUUID, username, useremail, userType, ativo, errMsg := validateUserCreateInput(&in)
+	username, useremail, userType, ativo, errMsg := validateUserCreateInput(&in)
 	if errMsg != "" {
 		http.Error(w, errMsg, http.StatusBadRequest)
 		return
@@ -480,7 +516,12 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request, id stri
 
 	// Primeiro buscamos para garantir que não é super_admin
 	var isSuper bool
-	err := h.DB.QueryRow(`SELECT is_super_admin FROM users WHERE id = $1`, id).Scan(&isSuper)
+	err = h.DB.QueryRow(`
+		SELECT is_super_admin 
+		  FROM users 
+		 WHERE id = $1
+		   AND tenant_id = $2
+	`, id, tenantIDStr).Scan(&isSuper)
 	if err == sql.ErrNoRows {
 		http.Error(w, "usuário não encontrado", http.StatusNotFound)
 		return
@@ -494,29 +535,20 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request, id stri
 		return
 	}
 
-	// Monta SQL dinâmico dependendo se veio password e/ou tenant/ativo
-	query := `
+	// Atualiza dados básicos (não muda tenant_id aqui)
+	var u User
+	var tenantIDNullable *uuid.UUID
+
+	err = h.DB.QueryRow(`
 		UPDATE users
 		   SET username   = $1,
 		       type       = $2,
 			   useremail  = $3,
-		       updated_at = NOW()`
-	args := []any{username, userType, useremail}
-	argPos := 4
-
-	if tenantUUID != nil {
-		query += `, tenant_id = $` + fmt.Sprint('0'+argPos)
-		args = append(args, *tenantUUID)
-		argPos++
-	}
-
-	if ativo {
-		query += `, ativo = $` + fmt.Sprint('0'+argPos)
-		args = append(args, ativo)
-		argPos++
-	}
-
-	query += ` WHERE id = $` + fmt.Sprint('0'+argPos) + ` RETURNING
+			   ativo      = $4,
+		       updated_at = NOW()
+		 WHERE id        = $5
+		   AND tenant_id  = $6
+		RETURNING
 			id,
 			tenant_id,
 			codigo,
@@ -527,14 +559,14 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request, id stri
 			created_at,
 			updated_at,
 			useremail
-	`
-
-	args = append(args, id)
-
-	var u User
-	var tenantIDNullable *uuid.UUID
-
-	err = h.DB.QueryRow(query, args...).Scan(
+	`,
+		username,
+		userType,
+		useremail,
+		ativo,
+		id,
+		tenantIDStr,
+	).Scan(
 		&u.ID,
 		&tenantIDNullable,
 		&u.Codigo,
@@ -546,6 +578,7 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request, id stri
 		&u.UpdatedAt,
 		&u.UserEmail,
 	)
+
 	if tenantIDNullable != nil {
 		idStr := tenantIDNullable.String()
 		u.TenantID = &idStr
@@ -573,14 +606,27 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request, id stri
 // -----------------------------------------------------------------------------
 
 func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request, id string) {
+	// 🔒 exige token válido
+	if _, err := AuthenticateRequest(h.DB, r); err != nil {
+		http.Error(w, "não autorizado: "+err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	tenantIDStr, err := GetTenantIDFromHeader(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	// não deixa desativar super admin
 	res, err := h.DB.Exec(`
 		UPDATE users
 		   SET ativo      = FALSE,
 		       updated_at = NOW()
 		 WHERE id = $1
+		   AND tenant_id = $2
 		   AND is_super_admin = FALSE
-	`, id)
+	`, id, tenantIDStr)
 	if err != nil {
 		http.Error(w, "erro ao inativar usuário: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -597,17 +643,38 @@ func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request, id stri
 
 // gera uma senha aleatória (base64 url-safe)
 func generatePassword() (string, error) {
-	b := make([]byte, 8) // 256 bits
+	b := make([]byte, 8)
 	if _, err := rand.Read(b); err != nil {
 		return "", err
 	}
 	return base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(b), nil
 }
 
+// -----------------------------------------------------------------------------
+// POST /users/{id}/reset-password
+// -----------------------------------------------------------------------------
+
 func (h *UserHandler) ResetUserPassword(w http.ResponseWriter, r *http.Request, id string) {
+	// 🔒 exige token válido
+	if _, err := AuthenticateRequest(h.DB, r); err != nil {
+		http.Error(w, "não autorizado: "+err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	tenantIDStr, err := GetTenantIDFromHeader(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	// garante que usuário existe e não é super admin
 	var isSuper bool
-	err := h.DB.QueryRow(`SELECT is_super_admin FROM users WHERE id = $1`, id).Scan(&isSuper)
+	err = h.DB.QueryRow(`
+		SELECT is_super_admin 
+		  FROM users 
+		 WHERE id = $1
+		   AND tenant_id = $2
+	`, id, tenantIDStr).Scan(&isSuper)
 	if err == sql.ErrNoRows {
 		http.Error(w, "usuário não encontrado", http.StatusNotFound)
 		return
@@ -643,7 +710,8 @@ func (h *UserHandler) ResetUserPassword(w http.ResponseWriter, r *http.Request, 
 		   SET password_hash = $1,
 		       updated_at    = NOW()
 		 WHERE id = $2
-		 RETURNING
+		   AND tenant_id = $3
+		RETURNING
 			id,
 			tenant_id,
 			codigo,
@@ -657,6 +725,7 @@ func (h *UserHandler) ResetUserPassword(w http.ResponseWriter, r *http.Request, 
 	`,
 		passwordHash,
 		id,
+		tenantIDStr,
 	).Scan(
 		&u.ID,
 		&tenantIDNullable,

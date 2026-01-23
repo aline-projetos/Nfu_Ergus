@@ -38,6 +38,14 @@ type CategoryUpdateInput struct {
 	Description     *string `json:"description"`
 }
 
+type CategoryHandler struct {
+	DB *sql.DB
+}
+
+func NewCategoryHandler(db *sql.DB) *CategoryHandler {
+	return &CategoryHandler{DB: db}
+}
+
 func (h *CategoryHandler) generateNextCategoryCode(tenantID string) (string, error) {
 	var lastCode sql.NullString
 
@@ -72,27 +80,10 @@ func (h *CategoryHandler) generateNextCategoryCode(tenantID string) (string, err
 	return fmt.Sprintf("CAT%03d", num), nil
 }
 
-func getTenantIDFromHeader(r *http.Request) (string, error) {
-	tenantID := r.Header.Get("X-Tenant-ID")
-	if strings.TrimSpace(tenantID) == "" {
-		return "", fmt.Errorf("X-Tenant-ID é obrigatório")
-	}
-	// valida se é UUID
-	if _, err := uuid.Parse(tenantID); err != nil {
-		return "", fmt.Errorf("X-Tenant-ID inválido")
-	}
-	return tenantID, nil
-}
+// -----------------------------------------------------------------------------
+// Registro de rotas
+// -----------------------------------------------------------------------------
 
-type CategoryHandler struct {
-	DB *sql.DB
-}
-
-func NewCategoryHandler(db *sql.DB) *CategoryHandler {
-	return &CategoryHandler{DB: db}
-}
-
-// Registra as rotas relacionadas a Category
 func (h *CategoryHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/categories", h.handleCategories)
 	mux.HandleFunc("/categories/", h.handleCategoryByID)
@@ -131,11 +122,21 @@ func (h *CategoryHandler) handleCategoryByID(w http.ResponseWriter, r *http.Requ
 	}
 }
 
+// -----------------------------------------------------------------------------
 // POST /categories
+// -----------------------------------------------------------------------------
+
 func (h *CategoryHandler) CreateCategory(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
-	tenantID, err := getTenantIDFromHeader(r)
+	// 1) exige sessão válida (Authorization: Bearer <token>)
+	if _, err := RequireSession(h.DB, r); err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	// 2) tenantId obrigatório no header
+	tenantID, err := GetTenantIDFromHeader(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -192,8 +193,19 @@ func (h *CategoryHandler) CreateCategory(w http.ResponseWriter, r *http.Request)
 	_ = json.NewEncoder(w).Encode(cat)
 }
 
+// -----------------------------------------------------------------------------
+// GET /categories
+// -----------------------------------------------------------------------------
+
 func (h *CategoryHandler) ListCategories(w http.ResponseWriter, r *http.Request) {
-	tenantID, err := getTenantIDFromHeader(r)
+	// 1) exige sessão
+	if _, err := RequireSession(h.DB, r); err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	// 2) tenantId do header
+	tenantID, err := GetTenantIDFromHeader(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -258,12 +270,23 @@ func (h *CategoryHandler) ListCategories(w http.ResponseWriter, r *http.Request)
 	_ = json.NewEncoder(w).Encode(cats)
 }
 
+// -----------------------------------------------------------------------------
+// GET /categories/{id}
+// -----------------------------------------------------------------------------
+
 func (h *CategoryHandler) GetCategoryByID(
 	w http.ResponseWriter,
 	r *http.Request,
 	id string,
 ) {
-	tenantID, err := getTenantIDFromHeader(r)
+	// 1) sessão
+	if _, err := RequireSession(h.DB, r); err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	// 2) tenant do header
+	tenantID, err := GetTenantIDFromHeader(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -315,6 +338,10 @@ func (h *CategoryHandler) GetCategoryByID(
 	_ = json.NewEncoder(w).Encode(c)
 }
 
+// -----------------------------------------------------------------------------
+// PUT /categories/{id}
+// -----------------------------------------------------------------------------
+
 func (h *CategoryHandler) UpdateCategory(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -322,7 +349,14 @@ func (h *CategoryHandler) UpdateCategory(
 ) {
 	defer r.Body.Close()
 
-	tenantID, err := getTenantIDFromHeader(r)
+	// 1) sessão
+	if _, err := RequireSession(h.DB, r); err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	// 2) tenant
+	tenantID, err := GetTenantIDFromHeader(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -418,12 +452,23 @@ func (h *CategoryHandler) UpdateCategory(
 	_ = json.NewEncoder(w).Encode(c)
 }
 
+// -----------------------------------------------------------------------------
+// DELETE /categories/{id}
+// -----------------------------------------------------------------------------
+
 func (h *CategoryHandler) DeleteCategory(
 	w http.ResponseWriter,
 	r *http.Request,
 	id string,
 ) {
-	tenantID, err := getTenantIDFromHeader(r)
+	// 1) sessão
+	if _, err := RequireSession(h.DB, r); err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	// 2) tenant
+	tenantID, err := GetTenantIDFromHeader(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -434,7 +479,6 @@ func (h *CategoryHandler) DeleteCategory(
 		 where id = $1
 		   and tenant_id = $2
 	`, id, tenantID)
-
 	if err != nil {
 		http.Error(w, "erro ao excluir categoria: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -449,13 +493,24 @@ func (h *CategoryHandler) DeleteCategory(
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// -----------------------------------------------------------------------------
+// GET /categories/by-code?code=CAT001
+// -----------------------------------------------------------------------------
+
 func (h *CategoryHandler) handleCategoryByCode(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "método não permitido", http.StatusMethodNotAllowed)
 		return
 	}
 
-	tenantID, err := getTenantIDFromHeader(r)
+	// 1) sessão
+	if _, err := RequireSession(h.DB, r); err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	// 2) tenant
+	tenantID, err := GetTenantIDFromHeader(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -499,7 +554,6 @@ func (h *CategoryHandler) handleCategoryByCode(w http.ResponseWriter, r *http.Re
 		&c.SiteLink,
 		&c.Description,
 	)
-
 	if err == sql.ErrNoRows {
 		http.Error(w, "categoria não encontrada", http.StatusNotFound)
 		return
@@ -513,13 +567,24 @@ func (h *CategoryHandler) handleCategoryByCode(w http.ResponseWriter, r *http.Re
 	_ = json.NewEncoder(w).Encode(c)
 }
 
+// -----------------------------------------------------------------------------
+// POST /categories/duplicate/{id}
+// -----------------------------------------------------------------------------
+
 func (h *CategoryHandler) handleDuplicateCategory(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "método não permitido", http.StatusMethodNotAllowed)
 		return
 	}
 
-	tenantID, err := getTenantIDFromHeader(r)
+	// 1) sessão
+	if _, err := RequireSession(h.DB, r); err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	// 2) tenant
+	tenantID, err := GetTenantIDFromHeader(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

@@ -83,6 +83,7 @@ export function UserForm() {
           headers: {
             'Content-Type': 'application/json',
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            ...(sessionTenantId ? { 'X-Tenant-ID': sessionTenantId } : {}),
           },
         });
 
@@ -114,6 +115,7 @@ export function UserForm() {
           headers: {
             'Content-Type': 'application/json',
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            ...(sessionTenantId ? { 'X-Tenant-ID': sessionTenantId } : {}),
           },
         });
 
@@ -223,6 +225,7 @@ export function UserForm() {
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(sessionTenantId ? { 'X-Tenant-ID': sessionTenantId } : {}),
         },
         body: JSON.stringify(payload),
       });

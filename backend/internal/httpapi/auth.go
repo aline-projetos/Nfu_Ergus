@@ -5,8 +5,10 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
+	"net"
 	"net/http"
 	"strings"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -42,6 +44,8 @@ type loginUserInfo struct {
 	TenantID     string `json:"tenantId,omitempty"`
 }
 
+const sessionDuration = 8 * time.Hour
+
 // POST /auth/login
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -72,7 +76,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		passwordHash string
 		isSuperAdmin bool
 		userType     string
-		tenantID     string
+		tenantID     sql.NullString
 	)
 
 	err := h.DB.QueryRow(`
@@ -119,6 +123,42 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	tokenHashBytes, err := bcrypt.GenerateFromPassword([]byte(sessionToken), bcrypt.DefaultCost)
+	if err != nil {
+		http.Error(w, "erro ao gerar hash do token de sessão", http.StatusInternalServerError)
+		return
+	}
+
+	tokenHash := string(tokenHashBytes)
+	expiresAt := time.Now().Add(sessionDuration)
+	var ip string
+	host, _, splitErr := net.SplitHostPort(r.RemoteAddr)
+	if splitErr == nil {
+		ip = host
+	} else {
+		ip = r.RemoteAddr // fallback
+	}
+	_, err = h.DB.Exec(`
+		INSERT INTO sessions (
+			user_id,
+			token_hash,
+			expires_at,
+			user_agent,
+			ip_address
+		)
+		VALUES ($1, $2, $3, $4, $5)
+	`,
+		id,
+		tokenHash,
+		expiresAt,
+		r.UserAgent(),
+		ip,
+	)
+	if err != nil {
+		http.Error(w, "erro ao criar sessão: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	resp := loginResponse{
 		Token: sessionToken,
 		User: loginUserInfo{
@@ -127,7 +167,12 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 			Name:         username,
 			IsSuperAdmin: isSuperAdmin,
 			UserType:     userType,
-			TenantID:     tenantID,
+			TenantID: func() string {
+				if tenantID.Valid {
+					return tenantID.String
+				}
+				return ""
+			}(),
 		},
 	}
 

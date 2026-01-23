@@ -85,6 +85,7 @@ export function UsersTable() {
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(tenantId ? { 'X-Tenant-ID': tenantId } : {}),
         },
       });
 
@@ -112,6 +113,7 @@ export function UsersTable() {
             headers: {
               'Content-Type': 'application/json',
               ...(token ? { Authorization: `Bearer ${token}` } : {}),
+              ...(tenantId ? { 'X-Tenant-ID': tenantId } : {}),
             },
           });
   
@@ -141,6 +143,7 @@ export function UsersTable() {
           headers: {
             'Content-Type': 'application/json',
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            ...(tenantId ? { 'X-Tenant-ID': tenantId } : {}),
           },
         });
 
@@ -161,7 +164,11 @@ export function UsersTable() {
           useremail?: string;
         }> = await resp.json();
 
-        const dataFilter = data.filter(item => item.tenantId === tenantId);
+        let dataFilter = data;
+        if (tenantId) {
+          dataFilter = data.filter(item => item.tenantId === tenantId);
+        } 
+
         const mapped: UserRow[] = dataFilter.map(item => ({
           id: item.id,
           tenantId: item.tenantId,
@@ -269,6 +276,7 @@ export function UsersTable() {
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(tenantId ? { 'X-Tenant-ID': tenantId } : {}),
         },
         body: JSON.stringify(payload),
       });
@@ -301,6 +309,7 @@ export function UsersTable() {
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(tenantId ? { 'X-Tenant-ID': tenantId } : {}),
         },
       });
 
