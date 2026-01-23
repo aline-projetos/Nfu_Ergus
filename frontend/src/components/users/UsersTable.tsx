@@ -72,21 +72,45 @@ export function UsersTable() {
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
   const [isLoading, setIsLoading] = useState(true);
   const [tenants, setTenants] = useState<TenantOption[]>([]);
+  const [filterTenant, setFilterTenant] = useState<string>('all');
   const navigate = useNavigate();
   const [resetPasswordDialogOpen, setResetPasswordDialogOpen] = useState(false);
   const [resetPasswordUser, setResetPasswordUser] = useState<{ username: string; password: string } | null>(null);
-  const tenantId = JSON.parse(localStorage.getItem('ergus_user') || '{}').tenantId;
+  const loggedUser = JSON.parse(localStorage.getItem('ergus_user') || '{}');
+
+  const tenantId: string | undefined = loggedUser?.tenantId;
+  const isSuperAdmin: boolean = !!(loggedUser?.isSuperAdmin ?? loggedUser?.is_super_admin);
+
+  // helper para montar headers considerando superusuário x usuário comum
+  const buildHeaders = (options?: { targetTenantId?: string }) => {
+    const token = localStorage.getItem(TOKEN_KEY);
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    // se for superusuário, o tenant vem do alvo da ação (empresa do usuário que está sendo manipulado)
+    // se não for, usa o tenant do usuário logado
+    const headerTenantId = isSuperAdmin ? options?.targetTenantId : tenantId;
+
+    if (headerTenantId) {
+      headers['X-Tenant-ID'] = headerTenantId;
+    }
+
+    return headers;
+  };
 
   const handleResetPassword = async (userId: string) => {
     try {
-      const token = localStorage.getItem('ergus_token');
+      const targetUser = users.find(u => u.id === userId);
+
       const resp = await fetch(`${API_BASE_URL}/users/${userId}/reset-password`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          ...(tenantId ? { 'X-Tenant-ID': tenantId } : {}),
-        },
+        headers: buildHeaders({ targetTenantId: targetUser?.tenantId }),
       });
 
       if (!resp.ok) {
@@ -108,13 +132,8 @@ export function UsersTable() {
     useEffect(() => {
       const fetchTenants = async () => {
         try {
-          const token = localStorage.getItem(TOKEN_KEY);
           const resp = await fetch(`${API_BASE_URL}/tenants`, {
-            headers: {
-              'Content-Type': 'application/json',
-              ...(token ? { Authorization: `Bearer ${token}` } : {}),
-              ...(tenantId ? { 'X-Tenant-ID': tenantId } : {}),
-            },
+            headers: buildHeaders(),
           });
   
           if (!resp.ok) {
@@ -137,14 +156,8 @@ export function UsersTable() {
     const fetchUsers = async () => {
       setIsLoading(true);
       try {
-        const token = localStorage.getItem(TOKEN_KEY);
-
         const resp = await fetch(`${API_BASE_URL}/users`, {
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            ...(tenantId ? { 'X-Tenant-ID': tenantId } : {}),
-          },
+          headers: buildHeaders(),
         });
 
         if (!resp.ok) {
@@ -209,7 +222,10 @@ export function UsersTable() {
       (filterStatus === 'active' && user.ativo) ||
       (filterStatus === 'inactive' && !user.ativo);
 
-    return matchesSearch && matchesType && matchesStatus;
+      const matchesTenant =
+      filterTenant === 'all' || user.tenantId === filterTenant;
+
+    return matchesSearch && matchesType && matchesStatus && matchesTenant;
   });
 
   const totalPages = Math.ceil(filteredUsers.length / rowsPerPage) || 1;
@@ -272,14 +288,10 @@ export function UsersTable() {
       };
 
       const resp = await fetch(`${API_BASE_URL}/users/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          ...(tenantId ? { 'X-Tenant-ID': tenantId } : {}),
-        },
-        body: JSON.stringify(payload),
-      });
+      method: 'PUT',
+      headers: buildHeaders({ targetTenantId: user.tenantId }),
+      body: JSON.stringify(payload),
+    });
 
       if (!resp.ok) {
         const text = await resp.text();
@@ -304,13 +316,11 @@ export function UsersTable() {
     try {
       const token = localStorage.getItem(TOKEN_KEY);
 
+      const targetUser = users.find(u => u.id === deleteId);
+
       const resp = await fetch(`${API_BASE_URL}/users/${deleteId}`, {
         method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          ...(tenantId ? { 'X-Tenant-ID': tenantId } : {}),
-        },
+        headers: buildHeaders({ targetTenantId: targetUser?.tenantId }),
       });
 
       if (!resp.ok) {
@@ -408,6 +418,24 @@ export function UsersTable() {
                 <option value="all">Todos</option>
                 <option value="active">Ativos</option>
                 <option value="inactive">Inativos</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Empresa:</span>
+              <select
+                value={filterTenant}
+                onChange={(e) => {
+                  setFilterTenant(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="px-3 py-1.5 rounded-md border border-input bg-background text-foreground text-sm"
+              >
+                <option value="all">Todas</option>
+                {tenants.map(tenant => (
+                  <option key={tenant.id} value={tenant.id}>
+                    {tenant.name}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
@@ -604,7 +632,7 @@ export function UsersTable() {
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir usuário?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação não pode ser desfeita. O usuário será removido permanentemente do sistema.
+              O usuário será desativado do sistema.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

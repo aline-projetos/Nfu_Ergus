@@ -338,44 +338,71 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 // GET /users (lista, por tenant, sem super admin)
 // -----------------------------------------------------------------------------
 func (h *UserHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
-
-	if _, err := AuthenticateRequest(h.DB, r); err != nil {
+	// 1) Autentica e OBTÉM o usuário logado
+	authUser, err := AuthenticateRequest(h.DB, r)
+	if err != nil {
 		http.Error(w, "não autorizado: "+err.Error(), http.StatusUnauthorized)
 		return
 	}
 
-	tenantIDStr, err := GetTenantIDFromHeader(r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
+	var rows *sql.Rows
 
-	tenantUUID, err := uuid.Parse(tenantIDStr)
-	if err != nil {
-		http.Error(w, "tenantId inválido", http.StatusBadRequest)
-		return
-	}
+	// 2) Se for superusuário, ignora tenant_id e traz todo mundo
+	if authUser.IsSuperAdmin {
+		rows, err = h.DB.Query(`
+			SELECT
+				id,
+				tenant_id,
+				codigo,
+				username,
+				type,
+				is_super_admin,
+				ativo,
+				created_at,
+				updated_at,
+				useremail
+			FROM users
+			ORDER BY username ASC
+		`)
+		if err != nil {
+			http.Error(w, "erro ao listar usuários: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+	} else {
+		// 3) Usuário comum (pertence a um tenant) -> aplica regra de tenant
+		tenantIDStr, err := GetTenantIDFromHeader(r)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 
-	rows, err := h.DB.Query(`
-		SELECT
-			id,
-			tenant_id,
-			codigo,
-			username,
-			type,
-			is_super_admin,
-			ativo,
-			created_at,
-			updated_at,
-			useremail
-		FROM users
-		WHERE tenant_id = $1
-		  AND is_super_admin = FALSE
-		ORDER BY username ASC
-	`, tenantUUID)
-	if err != nil {
-		http.Error(w, "erro ao listar usuários: "+err.Error(), http.StatusInternalServerError)
-		return
+		tenantUUID, err := uuid.Parse(tenantIDStr)
+		if err != nil {
+			http.Error(w, "tenantId inválido", http.StatusBadRequest)
+			return
+		}
+
+		rows, err = h.DB.Query(`
+			SELECT
+				id,
+				tenant_id,
+				codigo,
+				username,
+				type,
+				is_super_admin,
+				ativo,
+				created_at,
+				updated_at,
+				useremail
+			FROM users
+			WHERE tenant_id = $1
+			  AND is_super_admin = FALSE
+			ORDER BY username ASC
+		`, tenantUUID)
+		if err != nil {
+			http.Error(w, "erro ao listar usuários: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 	defer rows.Close()
 

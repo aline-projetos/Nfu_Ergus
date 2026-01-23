@@ -44,15 +44,15 @@
     --radius: 0.75rem;
 
     /* Sidebar */
-    --sidebar-background: 222 47% 11%;
-    --sidebar-foreground: 220 20% 80%;
-    --sidebar-primary: 217 91% 60%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 222 40% 18%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 222 40% 18%;
+    --sidebar-background: 220 40% 96%;        /* fundo bem claro */
+    --sidebar-foreground: 222 47% 20%;       /* texto principal mais escuro */
+    --sidebar-primary: 220 85% 38%;        /* azul do item ativo */
+    --sidebar-primary-foreground: 0 0% 100%; /* texto do item ativo (branco) */
+    --sidebar-accent: 0 0% 100%;             /* hover: branco */
+    --sidebar-accent-foreground: 222 47% 20%;
+    --sidebar-border: 220 20% 90%;           /* borda suave */
     --sidebar-ring: 217 91% 60%;
-    --sidebar-muted: 220 9% 46%;
+    --sidebar-muted: 220 9% 50%;             /* texto secundário */
 
     /* Custom shadows */
     --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.04), 0 1px 2px -1px rgb(0 0 0 / 0.04);
@@ -111,18 +111,10 @@
 }
 
 @layer components {
-  .card-dashboard {
-    @apply bg-card rounded-xl border border-border;
-    box-shadow: var(--shadow-card);
-    transition: box-shadow 0.2s ease;
-  }
-
-  .card-dashboard:hover {
-    box-shadow: var(--shadow-card-hover);
-  }
-
   .sidebar-item {
-    @apply flex items-center gap-3 px-3 py-2.5 rounded-lg text-sidebar-foreground/80 transition-all duration-200;
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-full 
+           text-sidebar-foreground/80 text-sm font-medium
+           transition-all duration-200 bg-transparent;
   }
 
   .sidebar-item:hover {
@@ -130,19 +122,21 @@
   }
 
   .sidebar-item.active {
-    @apply bg-sidebar-primary text-sidebar-primary-foreground font-medium;
+    @apply bg-sidebar-primary text-sidebar-primary-foreground font-semibold;
   }
 
   .sidebar-subitem {
-    @apply flex items-center gap-3 pl-11 pr-3 py-2 rounded-lg text-sidebar-foreground/70 text-sm transition-all duration-200;
+    @apply flex items-center gap-3 pl-11 pr-3 py-2 rounded-full
+           text-sidebar-foreground/70 text-xs
+           transition-all duration-200 bg-transparent;
   }
 
   .sidebar-subitem:hover {
-    @apply bg-sidebar-accent/50 text-sidebar-foreground;
+    @apply bg-sidebar-accent text-sidebar-foreground;
   }
 
   .sidebar-subitem.active {
-    @apply bg-sidebar-primary/20 text-sidebar-primary font-medium;
+    @apply bg-sidebar-primary/15 text-sidebar-primary font-semibold;
   }
 
   .table-row-hover {

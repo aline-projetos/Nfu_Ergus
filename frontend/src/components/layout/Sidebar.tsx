@@ -93,12 +93,14 @@ export function Sidebar() {
 
   return (
     <aside className="fixed left-0 top-0 h-screen w-64 bg-sidebar flex flex-col z-50">
-      {/* Logo */}
+            {/* Logo */}
       <div className="h-16 flex items-center px-6 border-b border-sidebar-border">
         <Link to="/dashboard" className="flex items-center gap-2">
-          <span className="text-xl font-semibold text-sidebar-foreground">
-            er<span className="text-sidebar-primary">Gus</span>
-          </span>
+          <img
+            src="/logo_erGus.png"
+            alt="erGus ERP"
+            className="h-8 w-auto"
+          />
         </Link>
       </div>
 

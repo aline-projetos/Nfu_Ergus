@@ -61,30 +61,51 @@ export function UserForm() {
   const [isLoading, setIsLoading] = useState(isEdit);
   const [generatedPassword, setGeneratedPassword] = useState<string | null>(null);
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
-  const sessionTenantId: string | undefined =
-    JSON.parse(localStorage.getItem('ergus_user') || '{}').tenantId;
-  const hideTenantField = !isEdit && !!sessionTenantId;
+  
+  const loggedUser = JSON.parse(localStorage.getItem('ergus_user') || '{}');
+
+  const tenantId: string | undefined = loggedUser?.tenantId;
+  const hideTenantField = !isEdit && !!tenantId;
+  const isSuperAdmin: boolean = !!(loggedUser?.isSuperAdmin ?? loggedUser?.is_super_admin);
+
+  // helper para montar headers considerando superusuário x usuário comum
+  const buildHeaders = (options?: { targetTenantId?: string }) => {
+    const token = localStorage.getItem(TOKEN_KEY);
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    // se for superusuário, o tenant vem do alvo da ação (empresa do usuário que está sendo manipulado)
+    // se não for, usa o tenant do usuário logado
+    const headerTenantId = isSuperAdmin ? options?.targetTenantId : tenantId;
+
+    if (headerTenantId) {
+      headers['X-Tenant-ID'] = headerTenantId;
+    }
+
+    return headers;
+  };
 
   useEffect(() => {
-    if (!isEdit && sessionTenantId) {
+    if (!isEdit && tenantId) {
       setFormData(prev => ({
         ...prev,
-        tenantId: sessionTenantId,
+        tenantId: tenantId,
       }));
     }
-  }, [isEdit, sessionTenantId]);
+  }, [isEdit, tenantId]);
 
   // Carrega tenants
   useEffect(() => {
     const fetchTenants = async () => {
       try {
-        const token = localStorage.getItem(TOKEN_KEY);
         const resp = await fetch(`${API_BASE_URL}/tenants`, {
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            ...(sessionTenantId ? { 'X-Tenant-ID': sessionTenantId } : {}),
-          },
+          headers: buildHeaders(),
         });
 
         if (!resp.ok) {
@@ -101,7 +122,8 @@ export function UserForm() {
     };
 
     fetchTenants();
-  }, []);
+  }, []); 
+
 
   // Carrega usuário se for edição
   useEffect(() => {
@@ -112,11 +134,7 @@ export function UserForm() {
       try {
         const token = localStorage.getItem(TOKEN_KEY);
         const resp = await fetch(`${API_BASE_URL}/users/${id}`, {
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            ...(sessionTenantId ? { 'X-Tenant-ID': sessionTenantId } : {}),
-          },
+          headers: buildHeaders(),
         });
 
         if (!resp.ok) {
@@ -169,8 +187,8 @@ export function UserForm() {
   const validate = (): boolean => {
     const newErrors: Partial<Record<keyof FormData, string>> = {};
 
-    const effectiveTenantId = !isEdit && sessionTenantId
-      ? sessionTenantId
+    const effectiveTenantId = !isEdit && tenantId
+      ? tenantId
       : formData.tenantId;
 
     if (!effectiveTenantId) {
@@ -200,14 +218,12 @@ export function UserForm() {
 
     setIsSaving(true);
     try {
-      const token = localStorage.getItem(TOKEN_KEY);
-
-      const effectiveTenantId = !isEdit && sessionTenantId
-        ? sessionTenantId
-        : formData.tenantId;
+      const effectiveTenantId = !isEdit && tenantId
+      ? tenantId
+      : formData.tenantId;
 
       const payload = {
-        tenantId: formData.tenantId, 
+        tenantId: effectiveTenantId,
         username: formData.username.trim(),
         useremail: formData.useremail.trim(),
         type: formData.type,
@@ -222,11 +238,7 @@ export function UserForm() {
 
       const resp = await fetch(url, {
         method,
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          ...(sessionTenantId ? { 'X-Tenant-ID': sessionTenantId } : {}),
-        },
+        headers: buildHeaders({ targetTenantId: effectiveTenantId }),
         body: JSON.stringify(payload),
       });
 
@@ -289,13 +301,13 @@ export function UserForm() {
                       value={
                         isEdit
                           ? (formData.tenantId || undefined)
-                          : (sessionTenantId || formData.tenantId || undefined)
+                          : (tenantId || formData.tenantId || undefined)
                       }
                       onValueChange={(value) => {
-                        if (!isEdit && sessionTenantId) return;
+                        if (!isEdit && tenantId) return;
                         updateField('tenantId', value);
                       }}
-                      disabled={!isEdit && !!sessionTenantId}
+                      disabled={!isEdit && !!tenantId}
                     >
                       <SelectTrigger className={errors.tenantId ? 'border-destructive' : ''}>
                         <SelectValue placeholder="Selecione um cliente" />
