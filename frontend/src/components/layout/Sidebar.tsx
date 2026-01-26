@@ -27,6 +27,8 @@ const menuItems: MenuItem[] = [
       { label: 'Categorias', path: '/catalogo/categorias' },
       { label: 'Produtos', path: '/catalogo/produtos' },
       { label: 'Promoções', path: '/catalogo/promocoes' },
+      { label: 'Fornecedores', path: '/catalogo/fornecedores' },
+      { label: 'Fabricantes', path: '/catalogo/fabricantes' },
     ]
   },
   { 

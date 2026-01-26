@@ -25,6 +25,12 @@ import NewClient from "./pages/NewClient";
 import EditClient from "./pages/EditClient";
 import NewUser from "./pages/NewUser";
 import EditUser from "./pages/EditUser";
+import Suppliers from "./pages/Suppliers";
+import Manufacturers from "./pages/Manufacturers";
+import NewSupplier from "./pages/NewSupplier";
+import EditSupplier from "./pages/EditSupplier";
+import NewManufacturer from "./pages/NewManufacturer";
+import EditManufacturer from "./pages/EditManufacturer";
 
 const queryClient = new QueryClient();
 
@@ -55,6 +61,12 @@ const App = () => (
                 <Route path="/cadastros/admin/usuarios" element={<Users />} />
                 <Route path="/cadastros/admin/usuarios/novo" element={<NewUser />} />
                 <Route path="/cadastros/admin/usuarios/:id/editar" element={<EditUser />} />
+                <Route path="/catalogo/fornecedores" element={<Suppliers />} />
+                <Route path="/catalogo/fornecedores/novo" element={<NewSupplier />} />
+                <Route path="/catalogo/fornecedores/:id/editar" element={<EditSupplier />} />
+                <Route path="/catalogo/fabricantes" element={<Manufacturers />} />
+                <Route path="/catalogo/fabricantes/novo" element={<NewManufacturer />} />
+                <Route path="/catalogo/fabricantes/:id/editar" element={<EditManufacturer />} />
                 <Route path="/fiscal" element={<PlaceholderPage />} />
                 <Route path="/vendas" element={<PlaceholderPage />} />
                 <Route path="/relatorios" element={<PlaceholderPage />} />
