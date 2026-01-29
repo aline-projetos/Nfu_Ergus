@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useMemo, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Tag, Check, X, CheckCircle2, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -10,6 +10,13 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { CalendarIcon } from 'lucide-react';
+import {
+  createPromotion,
+  getPromotionById,
+  updatePromotion,
+  Promotion,
+  PromotionCreateInput,
+} from '@/lib/api/promotions';
 
 interface FormData {
   code: string;
@@ -18,10 +25,12 @@ interface FormData {
   startDate: Date | undefined;
   endDate: Date | undefined;
   usePercentage: boolean;
-  value: string;
+  value: string;           // string para o input, depois convertemos p/ number
   adjustCents: boolean;
-  centsAdjustment: string;
+  centsAdjustment: string; // idem
+  active: boolean;
 }
+
 
 const initialFormData: FormData = {
   code: '',
@@ -33,6 +42,7 @@ const initialFormData: FormData = {
   value: '',
   adjustCents: false,
   centsAdjustment: '',
+  active: true,
 };
 
 const steps = [
@@ -42,23 +52,52 @@ const steps = [
 
 export function PromotionWizard() {
   const navigate = useNavigate();
+  const { id } = useParams();
+  const isEditing = !!id;
   
   const [currentStep, setCurrentStep] = useState(1);
   const [visitedSteps, setVisitedSteps] = useState<number[]>([1]);
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
+  const [loading, setLoading] = useState(false);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedItems, setSelectedItems] = useState<AssociatedItem[]>([]);
 
-  const filteredItems = useMemo(() => {
-    if (!searchQuery.trim()) return mockSearchItems;
-    const query = searchQuery.toLowerCase();
-    return mockSearchItems.filter(
-      item => 
-        item.code.toLowerCase().includes(query) || 
-        item.name.toLowerCase().includes(query)
-    );
-  }, [searchQuery]);
+  const filteredItems = [];
+
+  useEffect(() => {
+  if (!isEditing || !id) return;
+
+  async function loadPromotion() {
+    try {
+      const promotion: Promotion = await getPromotionById(id);
+
+      setFormData({
+        code: promotion.code || '',
+        name: promotion.name || '',
+        type: promotion.type as 'add' | 'subtract',
+        startDate: promotion.start_date ? new Date(promotion.start_date) : undefined,
+        endDate: promotion.end_date ? new Date(promotion.end_date) : undefined,
+        usePercentage: promotion.use_percentage ?? false,
+        value: promotion.value?.toString() ?? '',
+        adjustCents: promotion.adjust_cents ?? false,
+        centsAdjustment: promotion.value_adjustment?.toString() ?? '',
+        active: promotion.active ?? true,
+      });
+
+      // aqui, se mais pra frente você fizer o back devolver products/categories,
+      // dá para popular selectedItems baseado nesses ids
+      setVisitedSteps([1, 2]);
+    } catch (err: any) {
+      toast.error(err?.message ?? 'Erro ao carregar promoção');
+      navigate('/catalogo/promocoes');
+    }
+  }
+
+  loadPromotion();
+}, [isEditing, id, navigate]);
+
 
   const updateField = <K extends keyof FormData>(field: K, value: FormData[K]) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -85,9 +124,6 @@ export function PromotionWizard() {
   const validateStep1 = () => {
     const newErrors: Partial<Record<keyof FormData, string>> = {};
     
-    if (!formData.code.trim()) {
-      newErrors.code = 'Código é obrigatório';
-    }
     if (!formData.name.trim()) {
       newErrors.name = 'Nome é obrigatório';
     }
@@ -114,19 +150,85 @@ export function PromotionWizard() {
     return true;
   };
 
-  const handleConfirm = () => {
-    if (currentStep === 1) {
-      if (validateStep1()) {
-        setCurrentStep(2);
-        setVisitedSteps(prev => [...new Set([...prev, 2])]);
+  const handleConfirm = async () => {
+      if (currentStep === 1) {
+        if (validateStep1()) {
+          setCurrentStep(2);
+          setVisitedSteps(prev => [...new Set([...prev, 2])]);
+        }
+        return;
       }
-    } else {
-      // Save mock data
-      console.log('Saving promotion:', { ...formData, associatedItems: selectedItems });
-      toast.success('Promoção cadastrada com sucesso');
-      navigate('/catalogo/promocoes');
-    }
-  };
+  
+      // Step 2 -> salvar no backend
+      try {
+        setLoading(true);
+
+        const productIds = selectedItems
+        .filter(item => item.type === 'product')
+        .map(item => item.id);
+
+      const categoryIds = selectedItems
+        .filter(item => item.type === 'category')
+        .map(item => item.id);
+
+  
+        const start_date = formData.startDate
+        ? formData.startDate.toISOString()
+        : undefined;
+      const end_date = formData.endDate
+        ? formData.endDate.toISOString()
+        : undefined;
+
+      const value = formData.value
+        ? Number(formData.value.replace(',', '.'))
+        : NaN;
+
+      const value_adjustment = formData.centsAdjustment
+        ? Number(formData.centsAdjustment.replace(',', '.'))
+        : 0;
+
+      const payload: PromotionCreateInput = {
+        name: formData.name.trim(),
+        type: formData.type, // se precisar mapear pra 'Adiciona Valor'/'Subtrai Valor', faz aqui
+        start_date: start_date!,      // se você quiser obrigar, valide antes
+        end_date: end_date!,          // idem
+        use_percentage: formData.usePercentage,
+        value,
+        adjust_cents: formData.adjustCents,
+        value_adjustment,
+        active: formData.active ?? true,
+        products: productIds,
+        categories: categoryIds,
+      };
+
+  
+        if (!payload.name) {
+          throw new Error('Nome é obrigatório');
+        }
+        if (isNaN(payload.value)) {
+          throw new Error('Valor é obrigatório');
+        }
+        if (!payload.start_date || !payload.end_date) {
+          throw new Error('Datas de início e fim são obrigatórias');
+        }
+
+  
+        if (!isEditing) {
+          await createPromotion(payload);
+          toast.success('Promoção cadastrada com sucesso');
+        } else if (id) {
+          await updatePromotion(id, payload);
+          toast.success('Promoção atualizada com sucesso');
+        }
+
+  
+        navigate('/catalogo/promocoes');
+      } catch (err: any) {
+        toast.error(err.message ?? 'Erro ao salvar promocao');
+      } finally {
+        setLoading(false);
+      }
+    };
 
   const handleCancel = () => {
     navigate('/catalogo/promocoes');

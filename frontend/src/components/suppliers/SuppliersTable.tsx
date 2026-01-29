@@ -216,62 +216,73 @@ export function SuppliersTable() {
               </tr>
             </thead>
             <tbody>
-              {paginatedSuppliers.map((supplier) => (
-                <tr 
-                  key={supplier.id} 
-                  className={`table-row-hover border-b border-border last:border-b-0 ${
-                    selectedIds.includes(supplier.id) ? 'bg-primary/5' : ''
-                  }`}
-                >
-                  <td className="p-4">
-                    <Checkbox
-                      checked={selectedIds.includes(supplier.id)}
-                      onCheckedChange={(checked) => handleSelectOne(supplier.id, checked as boolean)}
-                    />
-                  </td>
-                  <td className="p-4 text-sm text-muted-foreground">{supplier.codigo}</td>
-                  <td className="p-4 text-sm font-medium text-foreground">{supplier.nome}</td>
-                  <td className="p-4 text-sm text-muted-foreground capitalize">
-                    {supplier.tipo === 'juridica' ? 'Jurídica' : 'Física'}
-                  </td>
-                  <td className="p-4 text-sm text-foreground">{getDocument(supplier)}</td>
-                  <td className="p-4 text-sm text-muted-foreground">{supplier.cidade}</td>
-                  <td className="p-4 text-sm text-muted-foreground">{supplier.uf}</td>
-                  <td className="p-4 text-center">
-                    <Switch
-                      checked={supplier.ativo}
-                      onCheckedChange={(checked) => handleToggleActive(supplier.id, checked)}
-                    />
-                  </td>
-                  <td className="p-4">
-                    <div className="flex items-center justify-center gap-1">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button
-                            onClick={() => navigate(`/catalogo/fornecedores/${supplier.id}/editar`)}
-                            className="p-1.5 rounded-md hover:bg-muted transition-colors"
-                          >
-                            <Pencil className="w-4 h-4 text-muted-foreground" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent>Editar fornecedor</TooltipContent>
-                      </Tooltip>
-                      
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button
-                            onClick={() => setDeleteId(supplier.id)}
-                            className="p-1.5 rounded-md hover:bg-destructive/10 transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4 text-destructive" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent>Excluir fornecedor</TooltipContent>
-                      </Tooltip>
-                    </div>
+              {paginatedSuppliers.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={9}
+                    className="p-8 text-center text-sm text-muted-foreground"
+                  >
+                    Nenhum fornecedor cadastrado
                   </td>
                 </tr>
-              ))}
+              ) : (
+                paginatedSuppliers.map((supplier) => (
+                  <tr 
+                    key={supplier.id} 
+                    className={`table-row-hover border-b border-border last:border-b-0 ${
+                      selectedIds.includes(supplier.id) ? 'bg-primary/5' : ''
+                    }`}
+                  >
+                    <td className="p-4">
+                      <Checkbox
+                        checked={selectedIds.includes(supplier.id)}
+                        onCheckedChange={(checked) => handleSelectOne(supplier.id, checked as boolean)}
+                      />
+                    </td>
+                    <td className="p-4 text-sm text-muted-foreground">{supplier.codigo}</td>
+                    <td className="p-4 text-sm font-medium text-foreground">{supplier.nome}</td>
+                    <td className="p-4 text-sm text-muted-foreground capitalize">
+                      {supplier.tipo === 'juridica' ? 'Jurídica' : 'Física'}
+                    </td>
+                    <td className="p-4 text-sm text-foreground">{getDocument(supplier)}</td>
+                    <td className="p-4 text-sm text-muted-foreground">{supplier.cidade}</td>
+                    <td className="p-4 text-sm text-muted-foreground">{supplier.uf}</td>
+                    <td className="p-4 text-center">
+                      <Switch
+                        checked={supplier.ativo}
+                        onCheckedChange={(checked) => handleToggleActive(supplier.id, checked)}
+                      />
+                    </td>
+                    <td className="p-4">
+                      <div className="flex items-center justify-center gap-1">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={() => navigate(`/catalogo/fornecedores/${supplier.id}/editar`)}
+                              className="p-1.5 rounded-md hover:bg-muted transition-colors"
+                            >
+                              <Pencil className="w-4 h-4 text-muted-foreground" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent>Editar fornecedor</TooltipContent>
+                        </Tooltip>
+                        
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={() => setDeleteId(supplier.id)}
+                              className="p-1.5 rounded-md hover:bg-destructive/10 transition-colors"
+                            >
+                              <Trash2 className="w-4 h-4 text-destructive" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent>Excluir fornecedor</TooltipContent>
+                        </Tooltip>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

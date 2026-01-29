@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
 import { 
   Pencil, 
   Trash2, 
@@ -8,10 +7,11 @@ import {
   ChevronsLeft,
   ChevronsRight,
   ArrowUpDown,
-  Factory,
+  Users,
   Plus,
   Search
 } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -29,55 +29,104 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Manufacturer, listManufacturers, deleteManufacturer, updateManufacturer } from '@/lib/api/manufacturers';
 import { toast } from 'sonner';
 
-type SortField = 'codigo' | 'nome' | 'cidade';
+type SortField = 'name' | 'document' | 'document_type';
 type SortDirection = 'asc' | 'desc';
 
-export function ManufacturersTable() {
-  const [manufacturers, setManufacturers] = useState<Manufacturer[]>([]);
+const API_BASE_URL = import.meta.env.VITE_API_URL;
+const TOKEN_KEY = 'ergus_token';
+
+interface TypeVariationRow {
+  id: string;
+  name: string;
+}
+
+interface TenantOption {
+  id: string;
+  name: string;
+}
+
+export function TypeVariationsTable() {
+  const [typeVariations, setTypeVariations] = useState<TypeVariationRow[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [sortField, setSortField] = useState<SortField>('nome');
+  const [sortField, setSortField] = useState<SortField>('name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [loadingDelete, setLoadingDelete] = useState(false);
-  const [loadingToggle, setLoadingToggle] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
+  const [tenants, setTenants] = useState<TenantOption[]>([]);
+  const loggedUser = JSON.parse(localStorage.getItem('ergus_user') || '{}');
+  const tenantId: string | undefined = loggedUser?.tenantId;
+  const isSuperAdmin: boolean = !!(loggedUser?.isSuperAdmin ?? loggedUser?.is_super_admin);
 
-  // Carrega do backend
-  useEffect(() => {
-    async function load() {
-      try {
-        const data = await listManufacturers();
-        setManufacturers(data);
-      } catch (err: any) {
-        toast.error(err.message ?? 'Erro ao carregar fabricantes');
-      }
+  const buildHeaders = (options?: { targetTenantId?: string }) => {
+    const token = localStorage.getItem(TOKEN_KEY);
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
     }
-    load();
-  }, []);
 
-  const filteredManufacturers = manufacturers.filter(manufacturer => 
-    manufacturer.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (manufacturer.cnpj && manufacturer.cnpj.includes(searchTerm))
-  );
+    const headerTenantId = isSuperAdmin ? options?.targetTenantId : tenantId;
 
-  const totalPages = Math.ceil(filteredManufacturers.length / rowsPerPage);
+    if (headerTenantId) {
+      headers['X-Tenant-ID'] = headerTenantId;
+    }
+
+    return headers;
+  };
+
+  // -----------------------------
+  // Carregar clientes do backend
+  // -----------------------------
+  useEffect(() => {
+        const fetchTenants = async () => {
+          try {
+            const resp = await fetch(`${API_BASE_URL}/tenants`, {
+              headers: buildHeaders(),
+            });
+    
+            if (!resp.ok) {
+              const text = await resp.text();
+              throw new Error(text || 'Erro ao buscar usuarios');
+            }
+    
+            const data: Array<{ id: string; name: string }> = await resp.json();
+            setTenants(data.map(t => ({ id: t.id, name: t.name })));
+          } catch (err: any) {
+            console.error(err);
+            toast.error(err.message || 'Erro ao carregar lista de usuarios');
+          }
+        };
+    
+        fetchTenants();
+      }, []);
+  // -----------------------------
+  // Filtros / ordenação / paginação
+  // -----------------------------
+
+  const filteredVariations = typeVariations.filter(variation => 
+    variation.name.toLowerCase().includes(searchTerm.toLowerCase()));
+
+  const totalPages = Math.ceil(filteredVariations.length / rowsPerPage) || 1;
   const startIndex = (currentPage - 1) * rowsPerPage;
   const endIndex = startIndex + rowsPerPage;
 
-  const sortedManufacturers = [...filteredManufacturers].sort((a, b) => {
-    const aValue = (a as any)[sortField] || '';
-    const bValue = (b as any)[sortField] || '';
+  const sortedVariations = [...filteredVariations].sort((a, b) => {
+    const aValue = a[sortField] || '';
+    const bValue = b[sortField] || '';
     const comparison = String(aValue).localeCompare(String(bValue));
     return sortDirection === 'asc' ? comparison : -comparison;
   });
 
-  const paginatedManufacturers = sortedManufacturers.slice(startIndex, endIndex);
+  const paginatedVariations = sortedVariations.slice(startIndex, endIndex);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -88,9 +137,9 @@ export function ManufacturersTable() {
     }
   };
 
-  const handleSelectAll = (checked: boolean) => {
+  const handleSelectAll = (checked: boolean | "indeterminate") => {
     if (checked) {
-      setSelectedIds(paginatedManufacturers.map(m => m.id));
+      setSelectedIds(paginatedVariations.map(c => c.id));
     } else {
       setSelectedIds([]);
     }
@@ -104,77 +153,89 @@ export function ManufacturersTable() {
     }
   };
 
-  // Toggle ativo -> chama backend
+  // -----------------------------
+  // Ativar / desativar cliente
+  // -----------------------------
   const handleToggleActive = async (id: string, checked: boolean) => {
-    const original = manufacturers.find(m => m.id === id);
-    if (!original) return;
+    const variations = typeVariations.find(c => c.id === id);
+    if (!variations) return;
 
     // otimista
-    setManufacturers(prev =>
-      prev.map(m => (m.id === id ? { ...m, ativo: checked } : m))
+    setTypeVariations(prev =>
+      prev.map(c =>
+        c.id === id ? { ...c} : c
+      )
     );
-    setLoadingToggle(id);
 
     try {
-      await updateManufacturer(id, {
-        nome: original.nome,
-        tipo: original.tipo,
-        cnpj: original.cnpj ?? null,
-        inscricao_estadual: original.inscricao_estadual ?? null,
+      const token = localStorage.getItem(TOKEN_KEY);
 
-        contatoPrincipalNome: original.contatoPrincipalNome ?? null,
-        contatoPrincipalTelefone: original.contatoPrincipalTelefone ?? null,
-        contatoPrincipalEmail: original.contatoPrincipalEmail ?? null,
+      const payload = {
+        name: variations.name,
+      };
 
-        contatoSecundarioNome: original.contatoSecundarioNome ?? null,
-        contatoSecundarioTelefone: original.contatoSecundarioTelefone ?? null,
-        contatoSecundarioEmail: original.contatoSecundarioEmail ?? null,
-
-        cep: original.cep ?? null,
-        logradouro: original.logradouro ?? null,
-        numero: original.numero ?? null,
-        complemento: original.complemento ?? null,
-        bairro: original.bairro ?? null,
-
-        codigoCidade: original.codigoCidade ?? null,
-        cidade: original.cidade,
-        uf: original.uf,
-
-        observacoes: original.observacoes ?? null,
-        ativo: checked,
+      const resp = await fetch(`${API_BASE_URL}/type-variations/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(payload),
       });
 
-      toast.success(checked ? 'Fabricante ativado' : 'Fabricante desativado');
+      if (!resp.ok) {
+        const text = await resp.text();
+        throw new Error(text || 'Erro ao atualizar tipo de variação');
+      }
+
+      toast.success(checked ? 'Tipo de variação ativado' : 'Tipo de variação desativado');
     } catch (err: any) {
-      // volta estado anterior
-      setManufacturers(prev =>
-        prev.map(m => (m.id === id ? { ...m, ativo: !checked } : m))
+      console.error(err);
+      toast.error(err.message || 'Erro ao atualizar status do tipo de variação');
+
+      // rollback
+      setTypeVariations(prev =>
+        prev.map(c =>
+          c.id === id ? { ...c} : c
+        )
       );
-      toast.error(err.message ?? 'Erro ao atualizar status do fabricante');
-    } finally {
-      setLoadingToggle(null);
     }
   };
 
+  // -----------------------------
+  // Delete (soft delete no backend)
+  // -----------------------------
   const confirmDelete = async () => {
     if (!deleteId) return;
 
     try {
-      setLoadingDelete(true);
-      await deleteManufacturer(deleteId);
+      const token = localStorage.getItem(TOKEN_KEY);
 
-      setManufacturers(prev => prev.filter(m => m.id !== deleteId));
-      toast.success('Fabricante excluído com sucesso');
+      const resp = await fetch(`${API_BASE_URL}/type-variations/${deleteId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+
+      if (!resp.ok) {
+        const text = await resp.text();
+        throw new Error(text || 'Erro ao excluir tipo de variação');
+      }
+
+      // removemos da lista atual
+      toast.success('Tipo de variação inativado com sucesso');
     } catch (err: any) {
-      toast.error(err.message ?? 'Erro ao excluir fabricante');
+      console.error(err);
+      toast.error(err.message || 'Erro ao excluir tipo de variação');
     } finally {
-      setLoadingDelete(false);
       setDeleteId(null);
     }
   };
 
-  const isAllSelected = paginatedManufacturers.length > 0 && 
-    paginatedManufacturers.every(m => selectedIds.includes(m.id));
+  const isAllSelected = paginatedVariations.length > 0 && 
+    paginatedVariations.every(c => selectedIds.includes(c.id));
 
   const SortButton = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
     <button
@@ -191,19 +252,18 @@ export function ManufacturersTable() {
   return (
     <div className="animate-fade-in">
       <div className="card-dashboard">
-        {/* Header com busca */}
         <div className="flex items-center justify-between p-6 border-b border-border">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Factory className="w-5 h-5 text-primary" />
+              <Users className="w-5 h-5 text-primary" />
             </div>
-            <h1 className="text-xl font-semibold text-foreground">Fabricantes</h1>
+            <h1 className="text-xl font-semibold text-foreground">Tipos de Variação</h1>
           </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input
               type="text"
-              placeholder="Buscar por nome ou CNPJ..."
+              placeholder="Buscar por nome"
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
@@ -214,7 +274,6 @@ export function ManufacturersTable() {
           </div>
         </div>
 
-        {/* Tabela */}
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -222,32 +281,11 @@ export function ManufacturersTable() {
                 <th className="w-12 p-4">
                   <Checkbox
                     checked={isAllSelected}
-                    onCheckedChange={handleSelectAll}
+                    onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
                   />
                 </th>
                 <th className="p-4 text-left text-sm font-medium text-muted-foreground">
-                  <SortButton field="codigo">Código</SortButton>
-                </th>
-                <th className="p-4 text-left text-sm font-medium text-muted-foreground">
-                  <SortButton field="nome">Nome</SortButton>
-                </th>
-                <th className="p-4 text-left text-sm font-medium text-muted-foreground">
-                  Tipo
-                </th>
-                <th className="p-4 text-left text-sm font-medium text-muted-foreground">
-                  CNPJ
-                </th>
-                <th className="p-4 text-left text-sm font-medium text-muted-foreground">
-                  Inscrição Estadual
-                </th>
-                <th className="p-4 text-left text-sm font-medium text-muted-foreground">
-                  <SortButton field="cidade">Cidade</SortButton>
-                </th>
-                <th className="p-4 text-left text-sm font-medium text-muted-foreground">
-                  UF
-                </th>
-                <th className="p-4 text-center text-sm font-medium text-muted-foreground">
-                  Ativo
+                  <SortButton field="name">Nome</SortButton>
                 </th>
                 <th className="w-24 p-4 text-center text-sm font-medium text-muted-foreground">
                   Ações
@@ -255,79 +293,67 @@ export function ManufacturersTable() {
               </tr>
             </thead>
             <tbody>
-              {paginatedManufacturers.length === 0 ? (
+              {isLoading ? (
                 <tr>
-                  <td
-                    colSpan={9}
-                    className="p-8 text-center text-sm text-muted-foreground"
-                  >
-                    Nenhum fabricante cadastrado
+                  <td colSpan={6} className="p-6 text-center text-sm text-muted-foreground">
+                    Carregando tipos de variações...
+                  </td>
+                </tr>
+              ) : paginatedVariations.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="p-6 text-center text-sm text-muted-foreground">
+                    Nenhum tipo de variação encontrado.
                   </td>
                 </tr>
               ) : (
-                paginatedManufacturers.map((manufacturer) => (
+                paginatedVariations.map((variation) => (
                   <tr 
-                    key={manufacturer.id} 
+                    key={variation.id} 
                     className={`table-row-hover border-b border-border last:border-b-0 ${
-                      selectedIds.includes(manufacturer.id) ? 'bg-primary/5' : ''
+                      selectedIds.includes(variation.id) ? 'bg-primary/5' : ''
                     }`}
                   >
                     <td className="p-4">
                       <Checkbox
-                        checked={selectedIds.includes(manufacturer.id)}
-                        onCheckedChange={(checked) => handleSelectOne(manufacturer.id, checked as boolean)}
+                        checked={selectedIds.includes(variation.id)}
+                        onCheckedChange={(checked) => handleSelectOne(variation.id, checked as boolean)}
                       />
                     </td>
-                    <td className="p-4 text-sm text-muted-foreground">{manufacturer.codigo}</td>
-                    <td className="p-4 text-sm font-medium text-foreground">{manufacturer.nome}</td>
-                    <td className="p-4 text-sm text-muted-foreground capitalize">
-                      {manufacturer.tipo === 'juridica' ? 'Jurídica' : 'Física'}
-                    </td>
-                    <td className="p-4 text-sm text-foreground">{manufacturer.cnpj || '-'}</td>
-                    <td className="p-4 text-sm text-muted-foreground">{manufacturer.inscricao_estadual || '-'}</td>
-                    <td className="p-4 text-sm text-muted-foreground">{manufacturer.cidade}</td>
-                    <td className="p-4 text-sm text-muted-foreground">{manufacturer.uf}</td>
-                    <td className="p-4 text-center">
-                      <Switch
-                        checked={manufacturer.ativo}
-                        disabled={loadingToggle === manufacturer.id}
-                        onCheckedChange={(checked) => handleToggleActive(manufacturer.id, checked as boolean)}
-                      />
-                    </td>
+                    <td className="p-4 text-sm font-medium text-foreground">{variation.name}</td>
                     <td className="p-4">
                       <div className="flex items-center justify-center gap-1">
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <button
-                              onClick={() => navigate(`/catalogo/fabricantes/${manufacturer.id}/editar`)}
+                              onClick={() => navigate(`/catalogo/variacoes/tipos/${variation.id}/editar`)}
                               className="p-1.5 rounded-md hover:bg-muted transition-colors"
                             >
                               <Pencil className="w-4 h-4 text-muted-foreground" />
                             </button>
                           </TooltipTrigger>
-                          <TooltipContent>Editar fabricante</TooltipContent>
+                          <TooltipContent>Editar tipo de variação</TooltipContent>
                         </Tooltip>
                         
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <button
-                              onClick={() => setDeleteId(manufacturer.id)}
+                              onClick={() => setDeleteId(variation.id)}
                               className="p-1.5 rounded-md hover:bg-destructive/10 transition-colors"
                             >
                               <Trash2 className="w-4 h-4 text-destructive" />
                             </button>
                           </TooltipTrigger>
-                          <TooltipContent>Excluir fabricante</TooltipContent>
+                          <TooltipContent>Excluir tipo de variação</TooltipContent>
                         </Tooltip>
                       </div>
                     </td>
                   </tr>
-                )))}
+                ))
+              )}
             </tbody>
           </table>
         </div>
 
-        {/* Paginação */}
         <div className="flex items-center justify-between p-4 border-t border-border">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <span>Linhas por página:</span>
@@ -348,8 +374,8 @@ export function ManufacturersTable() {
 
           <div className="flex items-center gap-4">
             <span className="text-sm text-muted-foreground">
-              {filteredManufacturers.length > 0
-                ? `${startIndex + 1}-${Math.min(endIndex, filteredManufacturers.length)} de ${filteredManufacturers.length}`
+              {filteredVariations.length > 0
+                ? `${startIndex + 1}-${Math.min(endIndex, filteredVariations.length)} de ${filteredVariations.length}`
                 : '0 de 0'}
             </span>
 
@@ -387,28 +413,27 @@ export function ManufacturersTable() {
         </div>
       </div>
 
-      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir fabricante?</AlertDialogTitle>
+            <AlertDialogTitle>Desativar tipo de variação?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação não pode ser desfeita. O fabricante será removido permanentemente do sistema.
+              Esta ação irá excluir o tipo de variação no sistema.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={loadingDelete}>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDelete}
-              disabled={loadingDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {loadingDelete ? 'Excluindo...' : 'Excluir'}
+              Excluir
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      <Link to="/catalogo/fabricantes/novo" className="fab-button">
+      <Link to="/catalogo/variacoes/tipos/novo" className="fab-button">
         <Plus className="w-6 h-6" />
       </Link>
     </div>

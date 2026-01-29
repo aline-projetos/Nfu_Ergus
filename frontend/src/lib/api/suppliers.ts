@@ -1,32 +1,45 @@
 // src/lib/api/suppliers.ts
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 const TOKEN_KEY = 'ergus_token';
-const TENANT_KEY = 'ergus_tenant_id';
 
 export interface Supplier {
   id: string;
   tenantId: string;
+
   codigo: string;
   nome: string;
   tipo: 'fisica' | 'juridica';
 
+  // documentos
   cpf?: string | null;
   rg?: string | null;
-
   cnpj?: string | null;
   inscricao_estadual?: string | null;
 
+  // contato principal (nome separado + telefone/email principais)
+  contato_principal_nome?: string | null;
   telefone?: string | null;
   email?: string | null;
 
+  // contato secundário
+  contato_secundario_nome?: string | null;
+  contato_secundario_telefone?: string | null;
+  contato_secundario_email?: string | null;
+
+  // endereço
   cep?: string | null;
   logradouro?: string | null;
   numero?: string | null;
   complemento?: string | null;
   bairro?: string | null;
 
+  // localização
+  codigo_cidade?: string | null;
   cidade: string;
   uf: string;
+
+  // outros
+  observacoes?: string | null;
 
   ativo: boolean;
 }
@@ -35,55 +48,87 @@ export interface SupplierCreateInput {
   nome: string;
   tipo: 'fisica' | 'juridica';
 
+  // opcional no payload (backend ignora porque gera o código)
+  codigo?: string | null;
+
+  // documentos
   cpf?: string | null;
   rg?: string | null;
-
   cnpj?: string | null;
   inscricao_estadual?: string | null;
 
+  // contato principal
+  contato_principal_nome?: string | null;
   telefone?: string | null;
   email?: string | null;
 
+  // contato secundário
+  contato_secundario_nome?: string | null;
+  contato_secundario_telefone?: string | null;
+  contato_secundario_email?: string | null;
+
+  // endereço
   cep?: string | null;
   logradouro?: string | null;
   numero?: string | null;
   complemento?: string | null;
   bairro?: string | null;
 
+  // localização
+  codigo_cidade?: string | null;
   cidade: string;
   uf: string;
+
+  // outros
+  observacoes?: string | null;
 
   ativo?: boolean | null;
 }
 
 export interface SupplierUpdateInput {
-    nome: string;
+  nome: string;
   tipo: 'fisica' | 'juridica';
 
+  // não atualiza código pelo wizard, mas deixamos possível
+  codigo?: string | null;
+
+  // documentos
   cpf?: string | null;
   rg?: string | null;
-
   cnpj?: string | null;
   inscricao_estadual?: string | null;
 
+  // contato principal
+  contato_principal_nome?: string | null;
   telefone?: string | null;
   email?: string | null;
 
+  // contato secundário
+  contato_secundario_nome?: string | null;
+  contato_secundario_telefone?: string | null;
+  contato_secundario_email?: string | null;
+
+  // endereço
   cep?: string | null;
   logradouro?: string | null;
   numero?: string | null;
   complemento?: string | null;
   bairro?: string | null;
 
+  // localização
+  codigo_cidade?: string | null;
   cidade: string;
   uf: string;
+
+  // outros
+  observacoes?: string | null;
 
   ativo?: boolean | null;
 }
 
 function getAuthHeaders() {
   const token = localStorage.getItem(TOKEN_KEY);
-  const tenantId = localStorage.getItem(TENANT_KEY);
+  const tenantId = JSON.parse(localStorage.getItem('ergus_user') || '{}').tenantId;
 
   if (!token) {
     throw new Error('Usuário não autenticado');

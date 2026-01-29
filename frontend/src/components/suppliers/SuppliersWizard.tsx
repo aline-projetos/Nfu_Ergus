@@ -8,6 +8,8 @@ import {
   updateSupplier,
   Supplier,
 } from '@/lib/api/suppliers';
+import { pesquisacep } from '@/lib/api/consulta_cep';
+
 
 const brazilianStates = [
   'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA',
@@ -254,6 +256,34 @@ export function SupplierWizard() {
     }
   };
 
+  const handleCepBlur = async () => {
+  const cep = formData.cep.replace(/\D/g, '');
+
+  if (!cep) return; // se estiver vazio, não faz nada
+
+  try {
+    const data = await pesquisacep(cep);
+
+    if (!data) {
+      toast.error('CEP não encontrado');
+      return;
+    }
+
+    // Preenche os campos do endereço com o retorno da API
+    setFormData(prev => ({
+      ...prev,
+      logradouro: data.logradouro || prev.logradouro,
+      bairro: data.bairro || prev.bairro,
+      nomeCidade: data.localidade || prev.nomeCidade,
+      uf: data.uf || prev.uf,
+      codigoCidade: data.gia || data.ibge,
+    }));
+  } catch (error: any) {
+    toast.error(error?.message ?? 'Erro ao consultar CEP');
+  }
+};
+
+
   return (
     <div className="animate-fade-in max-w-5xl mx-auto">
       <div className="card-dashboard">
@@ -467,20 +497,9 @@ export function SupplierWizard() {
 
                 {/* Contato Secundário / Endereço */}
                 <div>
-                  <h3 className="text-sm font-medium text-muted-foreground mb-4">Contato Secundário / Endereço</h3>
+                  <h3 className="text-sm font-medium text-muted-foreground mb-4">Contato Secundário</h3>
                   <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-foreground mb-2">
-                        CEP
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.cep}
-                        onChange={(e) => updateField('cep', e.target.value)}
-                        placeholder="00000-000"
-                        className="input-field"
-                      />
-                    </div>
+                    
                     <div>
                       <label className="block text-sm font-medium text-foreground mb-2">
                         Nome do Contato
@@ -505,8 +524,6 @@ export function SupplierWizard() {
                         className="input-field"
                       />
                     </div>
-                  </div>
-                  <div className="grid grid-cols-3 gap-4 mt-4">
                     <div>
                       <label className="block text-sm font-medium text-foreground mb-2">
                         E-mail
@@ -517,6 +534,27 @@ export function SupplierWizard() {
                         onChange={(e) => updateField('contatoSecundarioEmail', e.target.value)}
                         placeholder="email@exemplo.com"
                         className={`input-field ${errors.contatoSecundarioEmail ? 'error' : ''}`}
+                      />
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* Localização */}
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground mb-4">Localização</h3>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-2">
+                        CEP
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.cep}
+                        onChange={(e) => updateField('cep', e.target.value)}
+                        onBlur={handleCepBlur}    
+                        placeholder="00000-000"
+                        className="input-field"
                       />
                     </div>
                     <div>
@@ -543,16 +581,9 @@ export function SupplierWizard() {
                         className="input-field"
                       />
                     </div>
-                  </div>
-                </div>
-
-                {/* Localização */}
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground mb-4">Localização</h3>
-                  <div className="grid grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-foreground mb-2">
-                        Código da Cidade
+                        Código da Cidade (GIA)
                       </label>
                       <input
                         type="text"

@@ -48,9 +48,9 @@ export default function Login() {
           {/* Logo */}
           <div className="flex justify-center mb-8">
             <img 
-              src="/logo_erGus.png" 
+              src="/ergus_sem_fundo.png" 
               alt="erGus Logo" 
-              className="h-16 object-contain"
+              className="h-28 object-contain"
             />
           </div>
 

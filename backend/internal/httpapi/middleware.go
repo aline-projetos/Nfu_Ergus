@@ -122,24 +122,6 @@ func AuthenticateRequest(db *sql.DB, r *http.Request) (*AuthenticatedUser, error
 	return nil, fmt.Errorf("token inválido ou expirado")
 }
 
-func resolveTenantID(r *http.Request, authUser *AuthenticatedUser) (string, error) {
-	if !authUser.IsSuperAdmin {
-		if authUser.TenantID == nil || strings.TrimSpace(*authUser.TenantID) == "" {
-			return "", fmt.Errorf("usuário não possui tenant associado")
-		}
-		return *authUser.TenantID, nil
-	}
-
-	tenantID := r.Header.Get("X-Tenant-ID")
-	if strings.TrimSpace(tenantID) == "" {
-		return "", fmt.Errorf("X-Tenant-ID é obrigatório para super admin")
-	}
-	if _, err := uuid.Parse(tenantID); err != nil {
-		return "", fmt.Errorf("X-Tenant-ID inválido")
-	}
-	return tenantID, nil
-}
-
 func GetTenantIDFromHeader(r *http.Request) (string, error) {
 	tenantID := r.Header.Get("X-Tenant-ID")
 	if strings.TrimSpace(tenantID) == "" {
