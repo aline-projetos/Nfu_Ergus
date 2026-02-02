@@ -19,14 +19,15 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { Product, mockProducts } from '@/data/mockProducts';
+// import { Product, mockProducts } from '@/data/mockProducts';
 import { toast } from 'sonner';
+import { Product, listProducts, createProduct, getProductById, updateProduct, deleteProduct } from '@/lib/api/products';
 
 type SortField = 'code' | 'description' | 'reference' | 'stock';
 type SortDirection = 'asc' | 'desc';
 
 export function ProductsTable() {
-  const [products, setProducts] = useState<Product[]>(mockProducts);
+  const [products, setProducts] = useState<Product[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -87,8 +88,7 @@ export function ProductsTable() {
     const newProduct: Product = {
       ...product,
       id: String(Date.now()),
-      code: `${product.code}_COPY`,
-      description: `${product.description} (Cópia)`,
+      name: `${product.name}_COPY`,
     };
     setProducts(prev => [...prev, newProduct]);
     toast.success('Produto duplicado com sucesso');
@@ -134,15 +134,6 @@ export function ProductsTable() {
                 <th className="p-4 text-left text-sm font-medium text-muted-foreground">
                   <SortButton field="code">Código Produto</SortButton>
                 </th>
-                <th className="p-4 text-left text-sm font-medium text-muted-foreground">
-                  <SortButton field="description">Descrição</SortButton>
-                </th>
-                <th className="p-4 text-left text-sm font-medium text-muted-foreground">
-                  <SortButton field="reference">Referência</SortButton>
-                </th>
-                <th className="p-4 text-left text-sm font-medium text-muted-foreground">
-                  <SortButton field="stock">Estoque</SortButton>
-                </th>
                 <th className="w-32 p-4 text-center text-sm font-medium text-muted-foreground">
                   Ações
                 </th>
@@ -163,9 +154,6 @@ export function ProductsTable() {
                     />
                   </td>
                   <td className="p-4 text-sm font-medium text-foreground">{product.code}</td>
-                  <td className="p-4 text-sm text-foreground">{product.description}</td>
-                  <td className="p-4 text-sm text-muted-foreground">{product.reference}</td>
-                  <td className="p-4 text-sm text-muted-foreground">{product.stock}</td>
                   <td className="p-4">
                     <div className="flex items-center justify-center gap-1">
                       <Tooltip>

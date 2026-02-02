@@ -17,6 +17,8 @@ import {
   Promotion,
   PromotionCreateInput,
 } from '@/lib/api/promotions';
+import { listCategories } from '@/lib/api/categories';
+import Products from '@/pages/products/Products';
 
 interface FormData {
   code: string;

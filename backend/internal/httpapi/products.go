@@ -11,121 +11,30 @@ import (
 	"github.com/google/uuid"
 )
 
+// ============================================================
+// MODELS
+// ============================================================
+
+// Representa o produto conforme o que existe HOJE na tabela
 type Product struct {
-	//Dados Principais
-	ID           string  `json:"id"`
-	TenantID     string  `json:"tenantId"`
-	Code         string  `json:"code"`
-	Name         string  `json:"name"`
-	Reference    *string `json:"reference"`
-	CategoryCode *string `json:"categoryCode"`
-	CategoryName *string `json:"categoryName"`
-	CostPrice    *string `json:"costPrice"`
-	SalePrice    *string `json:"SalePrice"`
-	Sku          *int    `json:"sku"`
-	Ean          *string `json:"ean"`
-	Weight       *string `json:"weight"`
-	Length       *string `json:"length"`
-	Height       *string `json:"height"`
-	Width        *string `json:"width"`
-	Ncm          *string `json:"ncm"`
-	// Configurações
-	Unit             *string `json:"unit"`
-	ShortDescription *string `json:"shortDescription"`
-	LongDescription  *string `json:"longDescription"`
-	MetaTitle        *string `json:"metaTitle"`
-	MetaTag          *string `json:"metaTag"`
-	MetaDescription  *string `json:"metaDescription"`
-	// Regra Comercial
-	PromotionCode  *string `json:"promotionCode"`
-	PromotionName  *string `json:"promotionName"`
-	PromotionStart *int    `json:"promotionStart"`
-	PromotionEnd   *string `json:"promotionEnd"`
-	// Tributação
-	TaxGroup          *string `json:"taxGroup"`
-	NcmCode           *string `json:"ncmCode"`
-	NcmDescription    *string `json:"ncmDescription"`
-	CestCode          *string `json:"cestCode"`
-	CestDescription   *string `json:"cestDescription"`
-	PisCode           *string `json:"pisCode"`
-	PisDescription    *string `json:"pisDescription"`
-	CofinsCode        *string `json:"cofinsCode"`
-	CofinsDescription *string `json:"cofinsDescription"`
-	FiscalOrigin      *string `json:"fiscalOrigin"`
-	// Variações
-	VariationType      *string `json:"VariationType"`
-	VariationTypeCode  *string `json:"variationTypeCode"`
-	VariationSku       *string `json:"variationSku"`
-	VariationEan       *string `json:"variationEan"`
-	VariationWeight    *string `json:"variationWeight"`
-	VariationLength    *string `json:"variationLength"`
-	VariationHeight    *string `json:"variationHeight"`
-	VariationWidth     *string `json:"variationWidth"`
-	VariationShortDesc *string `json:"variationShortDesc"`
-	VariationLongDesc  *string `json:"variationLongDesc"`
-	VariationMetaTitle *string `json:"variationMetaTitle"`
-	VariationMetaTag   *string `json:"variationMetaTag"`
-	VariationMetaDesc  *string `json:"variationMetaDesc"`
-	VariationImageLink *string `json:"variationImageLink"`
-	VideoLink          *string `json:"videoLink"`
-	OtherLinks         *string `json:"otherLinks"`
+	ID       string `json:"id"`
+	TenantID string `json:"tenant_id"`
+	Code     string `json:"code"`
+	Name     string `json:"name"`
+}
+
+// Entrada de criação/edição: por enquanto só nome
+type ProductCreateInput struct {
+	Name string `json:"name"`
 }
 
 type ProductUpdateInput struct {
-	Name         string  `json:"name"`
-	Reference    *string `json:"reference"`
-	CategoryCode *string `json:"categoryCode"`
-	CategoryName *string `json:"categoryName"`
-	CostPrice    *string `json:"costPrice"`
-	SalePrice    *string `json:"SalePrice"`
-	Sku          *int    `json:"sku"`
-	Ean          *string `json:"ean"`
-	Weight       *string `json:"weight"`
-	Length       *string `json:"length"`
-	Height       *string `json:"height"`
-	Width        *string `json:"width"`
-	Ncm          *string `json:"ncm"`
-	// Configurações
-	Unit             *string `json:"unit"`
-	ShortDescription *string `json:"shortDescription"`
-	LongDescription  *string `json:"longDescription"`
-	MetaTitle        *string `json:"metaTitle"`
-	MetaTag          *string `json:"metaTag"`
-	MetaDescription  *string `json:"metaDescription"`
-	// Regra Comercial
-	PromotionCode  *string `json:"promotionCode"`
-	PromotionName  *string `json:"promotionName"`
-	PromotionStart *int    `json:"promotionStart"`
-	PromotionEnd   *string `json:"promotionEnd"`
-	// Tributação
-	TaxGroup          *string `json:"taxGroup"`
-	NcmCode           *string `json:"ncmCode"`
-	NcmDescription    *string `json:"ncmDescription"`
-	CestCode          *string `json:"cestCode"`
-	CestDescription   *string `json:"cestDescription"`
-	PisCode           *string `json:"pisCode"`
-	PisDescription    *string `json:"pisDescription"`
-	CofinsCode        *string `json:"cofinsCode"`
-	CofinsDescription *string `json:"cofinsDescription"`
-	FiscalOrigin      *string `json:"fiscalOrigin"`
-	// Variações
-	VariationType      *string `json:"VariationType"`
-	VariationTypeCode  *string `json:"variationTypeCode"`
-	VariationSku       *string `json:"variationSku"`
-	VariationEan       *string `json:"variationEan"`
-	VariationWeight    *string `json:"variationWeight"`
-	VariationLength    *string `json:"variationLength"`
-	VariationHeight    *string `json:"variationHeight"`
-	VariationWidth     *string `json:"variationWidth"`
-	VariationShortDesc *string `json:"variationShortDesc"`
-	VariationLongDesc  *string `json:"variationLongDesc"`
-	VariationMetaTitle *string `json:"variationMetaTitle"`
-	VariationMetaTag   *string `json:"variationMetaTag"`
-	VariationMetaDesc  *string `json:"variationMetaDesc"`
-	VariationImageLink *string `json:"variationImageLink"`
-	VideoLink          *string `json:"videoLink"`
-	OtherLinks         *string `json:"otherLinks"`
+	Name string `json:"name"`
 }
+
+// ============================================================
+// HANDLER
+// ============================================================
 
 type ProductHandler struct {
 	DB *sql.DB
@@ -135,16 +44,17 @@ func NewProductHandler(db *sql.DB) *ProductHandler {
 	return &ProductHandler{DB: db}
 }
 
+// Gera próximo código PROD001, PROD002... por tenant
 func (h *ProductHandler) generateNextProductCode(tenantID string) (string, error) {
 	var lastCode sql.NullString
 
 	err := h.DB.QueryRow(`
 		select code
 		  from products
-		  where tenant_id = $1
-		  and code like 'PROD%'
-		  order by code desc
-		  limit 1
+		 where tenant_id = $1
+		   and code like 'PROD%'
+		 order by code desc
+		 limit 1
 	`, tenantID).Scan(&lastCode)
 
 	if err == sql.ErrNoRows || !lastCode.Valid {
@@ -156,11 +66,11 @@ func (h *ProductHandler) generateNextProductCode(tenantID string) (string, error
 	}
 
 	code := lastCode.String
-	if len(code) < 3 {
+	if len(code) < 4 {
 		return "", fmt.Errorf("código inválido encontrado: %s", code)
 	}
 
-	numStr := code[3:]
+	numStr := code[4:] // depois de "PROD"
 	num, err := strconv.Atoi(numStr)
 	if err != nil {
 		return "", fmt.Errorf("código inválido encontrado: %s", code)
@@ -191,7 +101,8 @@ func (h *ProductHandler) handleProducts(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *ProductHandler) handleProductByID(w http.ResponseWriter, r *http.Request) {
-	id := strings.TrimPrefix(r.URL.Path, "/categories/")
+	// BUG que tinha aqui: estava "/categories/"
+	id := strings.TrimPrefix(r.URL.Path, "/products/")
 	if id == "" {
 		http.Error(w, "id não informado", http.StatusBadRequest)
 		return
@@ -209,7 +120,11 @@ func (h *ProductHandler) handleProductByID(w http.ResponseWriter, r *http.Reques
 	}
 }
 
+// ============================================================
 // POST /products
+// Front manda: { "name": "Produto X" }
+// ============================================================
+
 func (h *ProductHandler) CreateProduct(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
@@ -226,103 +141,44 @@ func (h *ProductHandler) CreateProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var prod Product
-	if err := json.NewDecoder(r.Body).Decode(&prod); err != nil {
+	var in ProductCreateInput
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		http.Error(w, "JSON inválido", http.StatusBadRequest)
 		return
 	}
 
-	if strings.TrimSpace(prod.Name) == "" {
+	if strings.TrimSpace(in.Name) == "" {
 		http.Error(w, "name é obrigatório", http.StatusBadRequest)
 		return
 	}
 
-	prod.ID = uuid.NewString()
+	id := uuid.NewString()
 
 	nextCode, err := h.generateNextProductCode(tenantID)
 	if err != nil {
 		http.Error(w, "erro ao gerar código do produto: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	prod.Code = nextCode
 
 	_, err = h.DB.Exec(`
-		insert into products (
-			id, tenant_id, code, name,
-			meta_title, meta_tag, meta_description, 
-			reference, category_code, category_name, cost_price, sale_price,
-			sku, ean, weight, length, height, width, ncm,
-			unit, short_description, long_description,
-			promotion_code, promotion_name, promotion_start, promotion_end,
-			tax_group, ncm_code, ncm_description,
-			cest_code, cest_description,
-			pis_code, pis_description,
-			cofins_code, cofins_description,
-			fiscal_origin,
-			variation_type, variation_type_code, variation_sku, variation_ean,
-			variation_weight, variation_length, variation_height, variation_width,
-			variation_short_desc, variation_long_desc,
-			variation_meta_title, variation_meta_tag, variation_meta_desc,
-			variation_image_link, video_link, other_links
-		) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,
-		 $27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49,$50,$51,$52)
+		insert into products (id, tenant_id, code, name)
+		values ($1, $2, $3, $4)
 	`,
-		prod.ID,
+		id,
 		tenantID,
-		prod.Code,
-		prod.Name,
-		prod.MetaTitle,
-		prod.MetaTag,
-		prod.MetaDescription,
-		prod.Reference,
-		prod.CategoryCode,
-		prod.CategoryName,
-		prod.CostPrice,
-		prod.SalePrice,
-		prod.Sku,
-		prod.Ean,
-		prod.Weight,
-		prod.Length,
-		prod.Height,
-		prod.Width,
-		prod.Ncm,
-		prod.Unit,
-		prod.ShortDescription,
-		prod.LongDescription,
-		prod.PromotionCode,
-		prod.PromotionName,
-		prod.PromotionStart,
-		prod.PromotionEnd,
-		prod.TaxGroup,
-		prod.NcmCode,
-		prod.NcmDescription,
-		prod.CestCode,
-		prod.CestDescription,
-		prod.PisCode,
-		prod.PisDescription,
-		prod.CofinsCode,
-		prod.CofinsDescription,
-		prod.FiscalOrigin,
-		prod.VariationType,
-		prod.VariationTypeCode,
-		prod.VariationSku,
-		prod.VariationEan,
-		prod.VariationWeight,
-		prod.VariationLength,
-		prod.VariationHeight,
-		prod.VariationWidth,
-		prod.VariationShortDesc,
-		prod.VariationLongDesc,
-		prod.VariationMetaTitle,
-		prod.VariationMetaTag,
-		prod.VariationMetaDesc,
-		prod.VariationImageLink,
-		prod.VideoLink,
-		prod.OtherLinks,
+		nextCode,
+		in.Name,
 	)
 	if err != nil {
 		http.Error(w, "erro ao salvar produto: "+err.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	prod := Product{
+		ID:       id,
+		TenantID: tenantID,
+		Code:     nextCode,
+		Name:     in.Name,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -330,8 +186,11 @@ func (h *ProductHandler) CreateProduct(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(prod)
 }
 
-func (h *ProductHandler) ListProducts(w http.ResponseWriter, r *http.Request) {
+// ============================================================
+// GET /products
+// ============================================================
 
+func (h *ProductHandler) ListProducts(w http.ResponseWriter, r *http.Request) {
 	// 1) exige sessão
 	if _, err := RequireSession(h.DB, r); err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
@@ -350,27 +209,10 @@ func (h *ProductHandler) ListProducts(w http.ResponseWriter, r *http.Request) {
 			id,
 			tenant_id,
 			code,
-			name,
-			meta_title, meta_tag, meta_description, 
-			reference, category_code, category_name, cost_price, sale_price,
-			sku, ean, weight, length, height, width, ncm,
-			unit, short_description, long_description,
-			promotion_code, promotion_name, promotion_start, promotion_end,
-			tax_group, ncm_code, ncm_description,
-			cest_code, cest_description,
-			pis_code, pis_description,
-			cofins_code, cofins_description,
-			fiscal_origin,
-			variation_type, variation_type_code, variation_sku, variation_ean,
-			variation_weight, variation_length, variation_height, variation_width,
-			variation_short_desc, variation_long_desc,
-			variation_meta_title, variation_meta_tag, variation_meta_desc,
-			variation_image_link, video_link, other_links
-			from products
-		where tenant_id = $1
-		order by
-			site_order nulls last,
-			name asc
+			name
+		  from products
+		 where tenant_id = $1
+		 order by name asc
 	`, tenantID)
 
 	if err != nil {
@@ -382,65 +224,17 @@ func (h *ProductHandler) ListProducts(w http.ResponseWriter, r *http.Request) {
 	products := make([]Product, 0)
 
 	for rows.Next() {
-		var c Product
+		var p Product
 		if err := rows.Scan(
-			&c.ID,
-			&c.TenantID,
-			&c.Code,
-			&c.Name,
-			&c.MetaTitle,
-			&c.MetaTag,
-			&c.MetaDescription,
-			&c.Reference,
-			&c.CategoryCode,
-			&c.CategoryName,
-			&c.CostPrice,
-			&c.SalePrice,
-			&c.Sku,
-			&c.Ean,
-			&c.Weight,
-			&c.Length,
-			&c.Height,
-			&c.Width,
-			&c.Ncm,
-			&c.Unit,
-			&c.ShortDescription,
-			&c.LongDescription,
-			&c.PromotionCode,
-			&c.PromotionName,
-			&c.PromotionStart,
-			&c.PromotionEnd,
-			&c.TaxGroup,
-			&c.NcmCode,
-			&c.NcmDescription,
-			&c.CestCode,
-			&c.CestDescription,
-			&c.PisCode,
-			&c.PisDescription,
-			&c.CofinsCode,
-			&c.CofinsDescription,
-			&c.FiscalOrigin,
-			&c.VariationType,
-			&c.VariationTypeCode,
-			&c.VariationSku,
-			&c.VariationEan,
-			&c.VariationWeight,
-			&c.VariationLength,
-			&c.VariationHeight,
-			&c.VariationWidth,
-			&c.VariationShortDesc,
-			&c.VariationLongDesc,
-			&c.VariationMetaTitle,
-			&c.VariationMetaTag,
-			&c.VariationMetaDesc,
-			&c.VariationImageLink,
-			&c.VideoLink,
-			&c.OtherLinks,
+			&p.ID,
+			&p.TenantID,
+			&p.Code,
+			&p.Name,
 		); err != nil {
 			http.Error(w, "erro ao ler produtos: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
-		products = append(products, c)
+		products = append(products, p)
 	}
 
 	if err := rows.Err(); err != nil {
@@ -452,12 +246,15 @@ func (h *ProductHandler) ListProducts(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(products)
 }
 
+// ============================================================
+// GET /products/{id}
+// ============================================================
+
 func (h *ProductHandler) GetProductByID(
 	w http.ResponseWriter,
 	r *http.Request,
 	id string,
 ) {
-
 	// 1) sessão
 	if _, err := RequireSession(h.DB, r); err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
@@ -478,82 +275,19 @@ func (h *ProductHandler) GetProductByID(
 			id,
 			tenant_id,
 			code,
-			name,
-			meta_title, meta_tag, meta_description,
-			reference, category_code, category_name, cost_price, sale_price,
-			sku, ean, weight, length, height, width, ncm,
-			unit, short_description, long_description,
-			promotion_code, promotion_name, promotion_start, promotion_end,
-			tax_group, ncm_code, ncm_description,
-			cest_code, cest_description,
-			pis_code, pis_description,
-			cofins_code, cofins_description,
-			fiscal_origin,
-			variation_type, variation_type_code, variation_sku, variation_ean,
-			variation_weight, variation_length, variation_height, variation_width,
-			variation_short_desc, variation_long_desc,
-			variation_meta_title, variation_meta_tag, variation_meta_desc,
-			variation_image_link, video_link, other_links
+			name
 		from products
 		where id = $1
-		and tenant_id = $2
+		  and tenant_id = $2
 	`, id, tenantID).Scan(
 		&p.ID,
 		&p.TenantID,
 		&p.Code,
 		&p.Name,
-		&p.MetaTitle,
-		&p.MetaTag,
-		&p.MetaDescription,
-		&p.Reference,
-		&p.CategoryCode,
-		&p.CategoryName,
-		&p.CostPrice,
-		&p.SalePrice,
-		&p.Sku,
-		&p.Ean,
-		&p.Weight,
-		&p.Length,
-		&p.Height,
-		&p.Width,
-		&p.Ncm,
-		&p.Unit,
-		&p.ShortDescription,
-		&p.LongDescription,
-		&p.PromotionCode,
-		&p.PromotionName,
-		&p.PromotionStart,
-		&p.PromotionEnd,
-		&p.TaxGroup,
-		&p.NcmCode,
-		&p.NcmDescription,
-		&p.CestCode,
-		&p.CestDescription,
-		&p.PisCode,
-		&p.PisDescription,
-		&p.CofinsCode,
-		&p.CofinsDescription,
-		&p.FiscalOrigin,
-		&p.VariationType,
-		&p.VariationTypeCode,
-		&p.VariationSku,
-		&p.VariationEan,
-		&p.VariationWeight,
-		&p.VariationLength,
-		&p.VariationHeight,
-		&p.VariationWidth,
-		&p.VariationShortDesc,
-		&p.VariationLongDesc,
-		&p.VariationMetaTitle,
-		&p.VariationMetaTag,
-		&p.VariationMetaDesc,
-		&p.VariationImageLink,
-		&p.VideoLink,
-		&p.OtherLinks,
 	)
 
 	if err == sql.ErrNoRows {
-		http.Error(w, "produto não encontrada", http.StatusNotFound)
+		http.Error(w, "produto não encontrado", http.StatusNotFound)
 		return
 	}
 	if err != nil {
@@ -564,6 +298,11 @@ func (h *ProductHandler) GetProductByID(
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(p)
 }
+
+// ============================================================
+// PUT /products/{id}
+// Front manda só { "name": "Novo nome" } por enquanto
+// ============================================================
 
 func (h *ProductHandler) UpdateProduct(
 	w http.ResponseWriter,
@@ -591,7 +330,6 @@ func (h *ProductHandler) UpdateProduct(
 		return
 	}
 
-	// Validação básica
 	if strings.TrimSpace(in.Name) == "" {
 		http.Error(w, "name é obrigatório", http.StatusBadRequest)
 		return
@@ -599,108 +337,11 @@ func (h *ProductHandler) UpdateProduct(
 
 	res, err := h.DB.Exec(`
 		update products
-		set
-				name           = $1,
-				meta_title     = $2,
-				meta_tag       = $3,
-				meta_description = $4,
-				reference      = $5,
-				category_code  = $6,
-				category_name  = $7,
-				cost_price     = $8,
-				sale_price     = $9,
-				sku            = $10,
-				ean            = $11,
-				weight         = $12,
-				length         = $13,
-				height         = $14,
-				width          = $15,
-				ncm            = $16,
-				unit             = $17,
-				short_description = $18,
-				long_description  = $19,
-				promotion_code  = $20,
-				promotion_name  = $21,
-				promotion_start = $22,
-				promotion_end   = $23,
-				tax_group          = $24,
-				ncm_code           = $25,
-				ncm_description    = $26,
-				cest_code          = $27,
-				cest_description   = $28,
-				pis_code           = $29,
-				pis_description    = $30,
-				cofins_code        = $31,
-				cofins_description = $32,
-				fiscal_origin      = $33,
-				variation_type      = $34,
-				variation_type_code  = $35,
-				variation_sku       = $36,
-				variation_ean       = $37,
-				variation_weight    = $38,
-				variation_length    = $39,
-				variation_height    = $40,
-				variation_width     = $41,
-				variation_short_desc = $42,
-				variation_long_desc  = $43,
-				variation_meta_title = $44,
-				variation_meta_tag   = $45,
-				variation_meta_desc  = $46,
-				variation_image_link = $47,
-				video_link          = $48,
-				other_links         = $49
-		where id        = $50
-		   and tenant_id  = $51
+		   set name = $1
+		 where id = $2
+		   and tenant_id = $3
 	`,
 		in.Name,
-		in.MetaTitle,
-		in.MetaTag,
-		in.MetaDescription,
-		in.Reference,
-		in.CategoryCode,
-		in.CategoryName,
-		in.CostPrice,
-		in.SalePrice,
-		in.Sku,
-		in.Ean,
-		in.Weight,
-		in.Length,
-		in.Height,
-		in.Width,
-		in.Ncm,
-		in.Unit,
-		in.ShortDescription,
-		in.LongDescription,
-		in.PromotionCode,
-		in.PromotionName,
-		in.PromotionStart,
-		in.PromotionEnd,
-		in.TaxGroup,
-		in.NcmCode,
-		in.NcmDescription,
-		in.CestCode,
-		in.CestDescription,
-		in.PisCode,
-		in.PisDescription,
-		in.CofinsCode,
-		in.CofinsDescription,
-		in.FiscalOrigin,
-		in.VariationType,
-		in.VariationTypeCode,
-		in.VariationSku,
-		in.VariationEan,
-		in.VariationWeight,
-		in.VariationLength,
-		in.VariationHeight,
-		in.VariationWidth,
-		in.VariationShortDesc,
-		in.VariationLongDesc,
-		in.VariationMetaTitle,
-		in.VariationMetaTag,
-		in.VariationMetaDesc,
-		in.VariationImageLink,
-		in.VideoLink,
-		in.OtherLinks,
 		id,
 		tenantID,
 	)
@@ -716,85 +357,22 @@ func (h *ProductHandler) UpdateProduct(
 		return
 	}
 
-	// Recarrega o produto já atualizado para devolver
+	// Recarrega o produto atualizado
 	var p Product
 	err = h.DB.QueryRow(`
 		select
 			id,
 			tenant_id,
 			code,
-			name,
-			meta_title, meta_tag, meta_description,
-			reference, category_code, category_name, cost_price, sale_price,
-			sku, ean, weight, length, height, width, ncm,
-			unit, short_description, long_description,
-			promotion_code, promotion_name, promotion_start, promotion_end,
-			tax_group, ncm_code, ncm_description,
-			cest_code, cest_description,
-			pis_code, pis_description,
-			cofins_code, cofins_description,
-			fiscal_origin,
-			variation_type, variation_type_code, variation_sku, variation_ean,
-			variation_weight, variation_length, variation_height, variation_width,
-			variation_short_desc, variation_long_desc,
-			variation_meta_title, variation_meta_tag, variation_meta_desc,
-			variation_image_link, video_link, other_links
+			name
 		from products
 		where id = $1
-		and tenant_id = $2
+		  and tenant_id = $2
 	`, id, tenantID).Scan(
 		&p.ID,
 		&p.TenantID,
 		&p.Code,
 		&p.Name,
-		&p.MetaTitle,
-		&p.MetaTag,
-		&p.MetaDescription,
-		&p.Reference,
-		&p.CategoryCode,
-		&p.CategoryName,
-		&p.CostPrice,
-		&p.SalePrice,
-		&p.Sku,
-		&p.Ean,
-		&p.Weight,
-		&p.Length,
-		&p.Height,
-		&p.Width,
-		&p.Ncm,
-		&p.Unit,
-		&p.ShortDescription,
-		&p.LongDescription,
-		&p.PromotionCode,
-		&p.PromotionName,
-		&p.PromotionStart,
-		&p.PromotionEnd,
-		&p.TaxGroup,
-		&p.NcmCode,
-		&p.NcmDescription,
-		&p.CestCode,
-		&p.CestDescription,
-		&p.PisCode,
-		&p.PisDescription,
-		&p.CofinsCode,
-		&p.CofinsDescription,
-		&p.FiscalOrigin,
-		&p.VariationType,
-		&p.VariationTypeCode,
-		&p.VariationSku,
-		&p.VariationEan,
-		&p.VariationWeight,
-		&p.VariationLength,
-		&p.VariationHeight,
-		&p.VariationWidth,
-		&p.VariationShortDesc,
-		&p.VariationLongDesc,
-		&p.VariationMetaTitle,
-		&p.VariationMetaTag,
-		&p.VariationMetaDesc,
-		&p.VariationImageLink,
-		&p.VideoLink,
-		&p.OtherLinks,
 	)
 	if err != nil {
 		http.Error(w, "erro ao buscar produto atualizado: "+err.Error(), http.StatusInternalServerError)
@@ -804,12 +382,15 @@ func (h *ProductHandler) UpdateProduct(
 	_ = json.NewEncoder(w).Encode(p)
 }
 
+// ============================================================
+// DELETE /products/{id}
+// ============================================================
+
 func (h *ProductHandler) DeleteProduct(
 	w http.ResponseWriter,
 	r *http.Request,
 	id string,
 ) {
-
 	// 1) sessão
 	if _, err := RequireSession(h.DB, r); err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
@@ -823,7 +404,12 @@ func (h *ProductHandler) DeleteProduct(
 		return
 	}
 
-	res, err := h.DB.Exec(`delete from produtos where id = $1 and tenant_id = $2`, id, tenantID)
+	// BUG aqui: estava "delete from produtos"
+	res, err := h.DB.Exec(`
+		delete from products
+		 where id = $1
+		   and tenant_id = $2
+	`, id, tenantID)
 	if err != nil {
 		http.Error(w, "erro ao excluir produto: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -837,6 +423,10 @@ func (h *ProductHandler) DeleteProduct(
 
 	w.WriteHeader(http.StatusNoContent)
 }
+
+// ============================================================
+// GET /products/by-code?code=PROD001
+// ============================================================
 
 func (h *ProductHandler) handleProductByCode(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -869,78 +459,15 @@ func (h *ProductHandler) handleProductByCode(w http.ResponseWriter, r *http.Requ
 			id,
 			tenant_id,
 			code,
-			name,
-			meta_title, meta_tag, meta_description,
-			reference, category_code, category_name, cost_price, sale_price,
-			sku, ean, weight, length, height, width, ncm,
-			unit, short_description, long_description,
-			promotion_code, promotion_name, promotion_start, promotion_end,
-			tax_group, ncm_code, ncm_description,
-			cest_code, cest_description,
-			pis_code, pis_description,
-			cofins_code, cofins_description,
-			fiscal_origin,
-			variation_type, variation_type_code, variation_sku, variation_ean,
-			variation_weight, variation_length, variation_height, variation_width,
-			variation_short_desc, variation_long_desc,
-			variation_meta_title, variation_meta_tag, variation_meta_desc,
-			variation_image_link, video_link, other_links
+			name
 		from products
 		where code = $1
-		and tenant_id = $2
+		  and tenant_id = $2
 	`, code, tenantID).Scan(
 		&p.ID,
 		&p.TenantID,
 		&p.Code,
 		&p.Name,
-		&p.MetaTitle,
-		&p.MetaTag,
-		&p.MetaDescription,
-		&p.Reference,
-		&p.CategoryCode,
-		&p.CategoryName,
-		&p.CostPrice,
-		&p.SalePrice,
-		&p.Sku,
-		&p.Ean,
-		&p.Weight,
-		&p.Length,
-		&p.Height,
-		&p.Width,
-		&p.Ncm,
-		&p.Unit,
-		&p.ShortDescription,
-		&p.LongDescription,
-		&p.PromotionCode,
-		&p.PromotionName,
-		&p.PromotionStart,
-		&p.PromotionEnd,
-		&p.TaxGroup,
-		&p.NcmCode,
-		&p.NcmDescription,
-		&p.CestCode,
-		&p.CestDescription,
-		&p.PisCode,
-		&p.PisDescription,
-		&p.CofinsCode,
-		&p.CofinsDescription,
-		&p.FiscalOrigin,
-		&p.VariationType,
-		&p.VariationTypeCode,
-		&p.VariationSku,
-		&p.VariationEan,
-		&p.VariationWeight,
-		&p.VariationLength,
-		&p.VariationHeight,
-		&p.VariationWidth,
-		&p.VariationShortDesc,
-		&p.VariationLongDesc,
-		&p.VariationMetaTitle,
-		&p.VariationMetaTag,
-		&p.VariationMetaDesc,
-		&p.VariationImageLink,
-		&p.VideoLink,
-		&p.OtherLinks,
 	)
 
 	if err == sql.ErrNoRows {
@@ -955,6 +482,11 @@ func (h *ProductHandler) handleProductByCode(w http.ResponseWriter, r *http.Requ
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(p)
 }
+
+// ============================================================
+// POST /products/duplicate/{id}
+// Duplicação simples, copiando só name e gerando novo code
+// ============================================================
 
 func (h *ProductHandler) handleDuplicateProduct(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -985,77 +517,18 @@ func (h *ProductHandler) handleDuplicateProduct(w http.ResponseWriter, r *http.R
 
 	err = h.DB.QueryRow(`
 		select
-			name,
-			meta_title,
-			meta_tag,
-			meta_description,
-			reference, category_code, category_name, cost_price, sale_price,
-			sku, ean, weight, length, height, width, ncm,
-			unit, short_description, long_description,
-			promotion_code, promotion_name, promotion_start, promotion_end,
-			tax_group, ncm_code, ncm_description,
-			cest_code, cest_description,
-			pis_code, pis_description,
-			cofins_code, cofins_description,
-			fiscal_origin,
-			variation_type, variation_type_code, variation_sku, variation_ean,
-			variation_weight, variation_length, variation_height, variation_width,
-			variation_short_desc, variation_long_desc,
-			variation_meta_title, variation_meta_tag, variation_meta_desc,
-			variation_image_link, video_link, other_links
+			id,
+			tenant_id,
+			code,
+			name
 		from products
 		where id = $1
-		and tenant_id = $2
+		  and tenant_id = $2
 	`, id, tenantID).Scan(
+		&original.ID,
+		&original.TenantID,
+		&original.Code,
 		&original.Name,
-		&original.MetaTitle,
-		&original.MetaTag,
-		&original.MetaDescription,
-		&original.Reference,
-		&original.CategoryCode,
-		&original.CategoryName,
-		&original.CostPrice,
-		&original.SalePrice,
-		&original.Sku,
-		&original.Ean,
-		&original.Weight,
-		&original.Length,
-		&original.Height,
-		&original.Width,
-		&original.Ncm,
-		&original.Unit,
-		&original.ShortDescription,
-		&original.LongDescription,
-		&original.PromotionCode,
-		&original.PromotionName,
-		&original.PromotionStart,
-		&original.PromotionEnd,
-		&original.TaxGroup,
-		&original.NcmCode,
-		&original.NcmDescription,
-		&original.CestCode,
-		&original.CestDescription,
-		&original.PisCode,
-		&original.PisDescription,
-		&original.CofinsCode,
-		&original.CofinsDescription,
-		&original.FiscalOrigin,
-		&original.VariationType,
-		&original.VariationTypeCode,
-		&original.VariationSku,
-		&original.VariationEan,
-		&original.VariationWeight,
-		&original.VariationLength,
-		&original.VariationHeight,
-		&original.VariationWidth,
-		&original.VariationShortDesc,
-		&original.VariationLongDesc,
-		&original.VariationMetaTitle,
-		&original.VariationMetaTag,
-		&original.VariationMetaDesc,
-		&original.VariationImageLink,
-		&original.VideoLink,
-		&original.OtherLinks,
 	)
 
 	if err == sql.ErrNoRows {
@@ -1067,100 +540,37 @@ func (h *ProductHandler) handleDuplicateProduct(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	// 🔢 gera próximo código PROD00X
-	var nextNumber int
-	_ = h.DB.QueryRow(`
-		select coalesce(max(substring(code from '[0-9]+')::int), 0) + 1
-		from products
-	`).Scan(&nextNumber)
-
-	newCode := fmt.Sprintf("PROD%03d", nextNumber)
+	// novo id + novo código
 	newID := uuid.NewString()
-
-	_, err = h.DB.Exec(`
-		insert into products (
-			id, tenant_id, code, name,
-			meta_title, meta_tag, meta_description, 
-			reference, category_code, category_name, cost_price, sale_price,
-			sku, ean, weight, length, height, width, ncm,
-			unit, short_description, long_description,
-			promotion_code, promotion_name, promotion_start, promotion_end,
-			tax_group, ncm_code, ncm_description,
-			cest_code, cest_description,
-			pis_code, pis_description,
-			cofins_code, cofins_description,
-			fiscal_origin,
-			variation_type, variation_type_code, variation_sku, variation_ean,
-			variation_weight, variation_length, variation_height, variation_width,
-			variation_short_desc, variation_long_desc,
-			variation_meta_title, variation_meta_tag, variation_meta_desc,
-			variation_image_link, video_link, other_links
-		) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,
-		 $27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49,$50,$51,$52)
-	`,
-		original.ID,
-		tenantID,
-		original.Code,
-		original.Name,
-		original.MetaTitle,
-		original.MetaTag,
-		original.MetaDescription,
-		original.Reference,
-		original.CategoryCode,
-		original.CategoryName,
-		original.CostPrice,
-		original.SalePrice,
-		original.Sku,
-		original.Ean,
-		original.Weight,
-		original.Length,
-		original.Height,
-		original.Width,
-		original.Ncm,
-		original.Unit,
-		original.ShortDescription,
-		original.LongDescription,
-		original.PromotionCode,
-		original.PromotionName,
-		original.PromotionStart,
-		original.PromotionEnd,
-		original.TaxGroup,
-		original.NcmCode,
-		original.NcmDescription,
-		original.CestCode,
-		original.CestDescription,
-		original.PisCode,
-		original.PisDescription,
-		original.CofinsCode,
-		original.CofinsDescription,
-		original.FiscalOrigin,
-		original.VariationType,
-		original.VariationTypeCode,
-		original.VariationSku,
-		original.VariationEan,
-		original.VariationWeight,
-		original.VariationLength,
-		original.VariationHeight,
-		original.VariationWidth,
-		original.VariationShortDesc,
-		original.VariationLongDesc,
-		original.VariationMetaTitle,
-		original.VariationMetaTag,
-		original.VariationMetaDesc,
-		original.VariationImageLink,
-		original.VideoLink,
-		original.OtherLinks,
-	)
+	newCode, err := h.generateNextProductCode(tenantID)
 	if err != nil {
-		http.Error(w, "erro ao salvar produto: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "erro ao gerar código do produto: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	original.ID = newID
-	original.Code = newCode
-	original.Name = original.Name + " (Cópia)"
+	// insere cópia
+	_, err = h.DB.Exec(`
+		insert into products (id, tenant_id, code, name)
+		values ($1, $2, $3, $4)
+	`,
+		newID,
+		tenantID,
+		newCode,
+		original.Name+" (Cópia)",
+	)
+	if err != nil {
+		http.Error(w, "erro ao salvar produto copiado: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	out := Product{
+		ID:       newID,
+		TenantID: tenantID,
+		Code:     newCode,
+		Name:     original.Name + " (Cópia)",
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	_ = json.NewEncoder(w).Encode(original)
+	_ = json.NewEncoder(w).Encode(out)
 }
