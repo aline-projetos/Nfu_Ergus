@@ -7,14 +7,20 @@ export interface Product {
   tenant_id: string;
   code: string;
   name: string;
+  category_id?: string | null;
+  supplier_id?: string | null;
+  manufacturer_id?: string | null;
 }
-
 
 export interface ProductCreateInput {
   name: string;
+  category_id?: string | null;
+  supplier_id?: string | null;
+  manufacturer_id?: string | null;
 }
 
-export type ProductUpdateInput = ProductCreateInput
+export type ProductUpdateInput = ProductCreateInput;
+
 
 function getAuthHeaders() {
   const token = localStorage.getItem(TOKEN_KEY);
@@ -57,7 +63,7 @@ export async function listProducts(): Promise<Product[]> {
 // -----------------------------------------------------------------------------
 
 export async function getProductById(id: string): Promise<Product> {
-  const res = await fetch(`${API_BASE_URL}/product/${id}`, {
+  const res = await fetch(`${API_BASE_URL}/products/${id}`, {
     method: 'GET',
     headers: getAuthHeaders(),
   });
@@ -77,7 +83,7 @@ export async function getProductById(id: string): Promise<Product> {
 export async function createProduct(
   input: ProductCreateInput
 ): Promise<Product> {
-  const res = await fetch(`${API_BASE_URL}/product`, {
+  const res = await fetch(`${API_BASE_URL}/products`, {
     method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify(input),

@@ -197,6 +197,14 @@ func (h *CategoryHandler) CreateCategory(w http.ResponseWriter, r *http.Request)
 // GET /categories
 // -----------------------------------------------------------------------------
 
+// -----------------------------------------------------------------------------
+// GET /categories
+// Suporta:
+//   - lista completa paginada:           /categories?page=1&page_size=50
+//   - busca por código ou nome (ilike):  /categories?q=CAT001
+//   - combinando com paginação
+//
+// -----------------------------------------------------------------------------
 func (h *CategoryHandler) ListCategories(w http.ResponseWriter, r *http.Request) {
 	// 1) exige sessão
 	if _, err := RequireSession(h.DB, r); err != nil {
@@ -211,26 +219,80 @@ func (h *CategoryHandler) ListCategories(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	rows, err := h.DB.Query(`
-		select
-			id,
-			tenant_id,
-			code,
-			name,
-			parent_code,
-			parent_name,
-			meta_title,
-			meta_tag,
-			meta_description,
-			site_order,
-			site_link,
-			description
-		from categories
-		where tenant_id = $1
-		order by
-			site_order nulls last,
-			name asc
-	`, tenantID)
+	// 3) parâmetros de busca / paginação
+	q := strings.TrimSpace(r.URL.Query().Get("q"))
+	pageStr := r.URL.Query().Get("page")
+	sizeStr := r.URL.Query().Get("page_size")
+
+	page := 1
+	pageSize := 50 // default
+
+	if v, err := strconv.Atoi(pageStr); err == nil && v > 0 {
+		page = v
+	}
+	if v, err := strconv.Atoi(sizeStr); err == nil && v > 0 && v <= 200 {
+		pageSize = v
+	}
+
+	offset := (page - 1) * pageSize
+
+	var rows *sql.Rows
+
+	// 4) monta query de acordo com se tem filtro ou não
+	if q != "" {
+		// Busca por:
+		//   - code exato
+		//   - name contendo q (case-insensitive)
+		rows, err = h.DB.Query(`
+			select
+				id,
+				tenant_id,
+				code,
+				name,
+				parent_code,
+				parent_name,
+				meta_title,
+				meta_tag,
+				meta_description,
+				site_order,
+				site_link,
+				description
+			from categories
+			where tenant_id = $1
+			  and (
+			       code = $2
+			       or name ilike '%' || $2 || '%'
+			  )
+			order by
+				site_order nulls last,
+				name asc
+			limit $3 offset $4
+		`, tenantID, q, pageSize, offset)
+	} else {
+		// Lista normal, só paginada
+		rows, err = h.DB.Query(`
+			select
+				id,
+				tenant_id,
+				code,
+				name,
+				parent_code,
+				parent_name,
+				meta_title,
+				meta_tag,
+				meta_description,
+				site_order,
+				site_link,
+				description
+			from categories
+			where tenant_id = $1
+			order by
+				site_order nulls last,
+				name asc
+			limit $2 offset $3
+		`, tenantID, pageSize, offset)
+	}
+
 	if err != nil {
 		http.Error(w, "erro ao listar categorias: "+err.Error(), http.StatusInternalServerError)
 		return

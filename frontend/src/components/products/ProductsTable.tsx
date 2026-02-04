@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Eye, 
@@ -19,9 +19,13 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-// import { Product, mockProducts } from '@/data/mockProducts';
 import { toast } from 'sonner';
-import { Product, listProducts, createProduct, getProductById, updateProduct, deleteProduct } from '@/lib/api/products';
+import { 
+  Product, 
+  listProducts, 
+  createProduct, 
+  deleteProduct 
+} from '@/lib/api/products';
 
 type SortField = 'code' | 'description' | 'reference' | 'stock';
 type SortDirection = 'asc' | 'desc';
@@ -33,8 +37,27 @@ export function ProductsTable() {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [sortField, setSortField] = useState<SortField>('code');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const totalPages = Math.ceil(products.length / rowsPerPage);
+  // ===== CARREGAR PRODUTOS DO BACKEND =====
+  const loadProducts = async () => {
+    try {
+      setIsLoading(true);
+      const data = await listProducts();
+      setProducts(data);
+    } catch (error) {
+      console.error('Erro ao carregar produtos:', error);
+      toast.error('Não foi possível carregar os produtos.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadProducts();
+  }, []);
+
+  const totalPages = Math.max(1, Math.ceil(products.length / rowsPerPage));
   const startIndex = (currentPage - 1) * rowsPerPage;
   const endIndex = startIndex + rowsPerPage;
 
@@ -46,8 +69,8 @@ export function ProductsTable() {
       return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
     }
     
-    const aStr = String(aValue || '');
-    const bStr = String(bValue || '');
+    const aStr = String(aValue ?? '');
+    const bStr = String(bValue ?? '');
     const comparison = aStr.localeCompare(bStr);
     return sortDirection === 'asc' ? comparison : -comparison;
   });
@@ -79,35 +102,55 @@ export function ProductsTable() {
     }
   };
 
-  const handleDelete = (id: string) => {
-    setProducts(prev => prev.filter(p => p.id !== id));
-    toast.success('Produto excluído com sucesso');
+  // ===== EXCLUIR PRODUTO NO BACKEND =====
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteProduct(id);
+      setProducts(prev => prev.filter(p => p.id !== id));
+      setSelectedIds(prev => prev.filter(selId => selId !== id));
+      toast.success('Produto excluído com sucesso.');
+    } catch (error) {
+      console.error('Erro ao excluir produto:', error);
+      toast.error('Não foi possível excluir o produto.');
+    }
   };
 
-  const handleDuplicate = (product: Product) => {
-    const newProduct: Product = {
-      ...product,
-      id: String(Date.now()),
-      name: `${product.name}_COPY`,
-    };
-    setProducts(prev => [...prev, newProduct]);
-    toast.success('Produto duplicado com sucesso');
+  // ===== DUPLICAR PRODUTO (CREATE NO BACKEND) =====
+  const handleDuplicate = async (product: Product) => {
+    try {
+      // remove o id para o backend criar um novo
+      const { id, ...rest } = product;
+
+      const payload = {
+        ...rest,
+        code: `${product.code}-COPY`,
+        name: `${product.name} (Cópia)`,
+      } as Omit<Product, 'id'>; // ajuste aqui se o tipo for diferente
+
+      const newProduct = await createProduct(payload);
+      setProducts(prev => [...prev, newProduct]);
+      toast.success('Produto duplicado com sucesso.');
+    } catch (error) {
+      console.error('Erro ao duplicar produto:', error);
+      toast.error('Não foi possível duplicar o produto.');
+    }
   };
 
-  const isAllSelected = paginatedProducts.length > 0 && 
+  const isAllSelected = 
+    paginatedProducts.length > 0 && 
     paginatedProducts.every(p => selectedIds.includes(p.id));
 
   const SortButton = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
-    <button
-      onClick={() => handleSort(field)}
-      className="flex items-center gap-1 hover:text-foreground transition-colors group"
-    >
-      {children}
-      <ArrowUpDown className={`w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity ${
-        sortField === field ? 'opacity-100 text-primary' : ''
-      }`} />
-    </button>
-  );
+      <button
+        onClick={() => handleSort(field)}
+        className="flex items-center gap-1 hover:text-foreground transition-colors group"
+      >
+        {children}
+        <ArrowUpDown className={`w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity ${
+          sortField === field ? 'opacity-100 text-primary' : ''
+        }`} />
+      </button>
+    );
 
   return (
     <div className="animate-fade-in">
@@ -117,7 +160,14 @@ export function ProductsTable() {
           <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
             <Package className="w-5 h-5 text-primary" />
           </div>
-          <h1 className="text-xl font-semibold text-foreground">Produtos</h1>
+          <div className="flex flex-col">
+            <h1 className="text-xl font-semibold text-foreground">Produtos</h1>
+            {isLoading && (
+              <span className="text-xs text-muted-foreground">
+                Carregando produtos...
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Table */}
@@ -133,6 +183,9 @@ export function ProductsTable() {
                 </th>
                 <th className="p-4 text-left text-sm font-medium text-muted-foreground">
                   <SortButton field="code">Código Produto</SortButton>
+                </th>
+                <th className="p-4 text-left text-sm font-medium text-muted-foreground">
+                  <SortButton field="name">Nome Produto</SortButton>
                 </th>
                 <th className="w-32 p-4 text-center text-sm font-medium text-muted-foreground">
                   Ações
@@ -150,15 +203,21 @@ export function ProductsTable() {
                   <td className="p-4">
                     <Checkbox
                       checked={selectedIds.includes(product.id)}
-                      onCheckedChange={(checked) => handleSelectOne(product.id, checked as boolean)}
+                      onCheckedChange={(checked) => 
+                        handleSelectOne(product.id, checked as boolean)
+                      }
                     />
                   </td>
-                  <td className="p-4 text-sm font-medium text-foreground">{product.code}</td>
+                  <td className="p-4 text-sm font-medium text-foreground">
+                    {product.code}
+                  </td>
+                  <td className="p-4 text-sm text-foreground">{product.name}</td>
                   <td className="p-4">
                     <div className="flex items-center justify-center gap-1">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <button 
+                            type="button"
                             onClick={() => handleDuplicate(product)}
                             className="p-1.5 rounded-md hover:bg-muted transition-colors"
                           >
@@ -183,6 +242,7 @@ export function ProductsTable() {
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <button 
+                            type="button"
                             onClick={() => handleDelete(product.id)}
                             className="p-1.5 rounded-md hover:bg-destructive/10 transition-colors"
                           >
@@ -195,6 +255,14 @@ export function ProductsTable() {
                   </td>
                 </tr>
               ))}
+
+              {!isLoading && products.length === 0 && (
+                <tr>
+                  <td colSpan={3} className="p-6 text-center text-sm text-muted-foreground">
+                    Nenhum produto encontrado.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -220,7 +288,9 @@ export function ProductsTable() {
 
           <div className="flex items-center gap-4">
             <span className="text-sm text-muted-foreground">
-              {startIndex + 1}-{Math.min(endIndex, products.length)} de {products.length}
+              {products.length === 0
+                ? '0-0 de 0'
+                : `${startIndex + 1}-${Math.min(endIndex, products.length)} de ${products.length}`}
             </span>
 
             <div className="flex items-center gap-1">

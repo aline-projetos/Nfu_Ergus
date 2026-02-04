@@ -17,8 +17,16 @@ import {
   Promotion,
   PromotionCreateInput,
 } from '@/lib/api/promotions';
-import { listCategories } from '@/lib/api/categories';
-import Products from '@/pages/products/Products';
+import {
+  searchProducts,
+  Product
+} from '@/lib/api/lookups';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface FormData {
   code: string;
@@ -52,6 +60,37 @@ const steps = [
   { id: 2, label: 'Integração' },
 ];
 
+const SearchInput = ({
+    value,
+    onChange,
+    placeholder,
+    error,
+    onSearch,
+  }: {
+    value: string;
+    onChange: (v: string) => void;
+    placeholder: string;
+    error?: boolean;
+    onSearch?: (term: string) => void;
+  }) => (
+    <div className="relative">
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className={`input-field pr-10 ${error ? 'error' : ''}`}
+      />
+      <button
+        type="button"
+        onClick={() => onSearch?.(value)}
+        className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded hover:bg-muted transition-colors"
+      >
+        <Search className="w-4 h-4 text-muted-foreground" />
+      </button>
+    </div>
+  );
+
 export function PromotionWizard() {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -65,6 +104,10 @@ export function PromotionWizard() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedItems, setSelectedItems] = useState<AssociatedItem[]>([]);
+
+  const [productResults, setProductResults] = useState<Product[]>([]);;
+  const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const [productFilter, setProductFilter] = useState('');
 
   const filteredItems = [];
 

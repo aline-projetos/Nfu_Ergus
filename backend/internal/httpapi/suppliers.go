@@ -381,37 +381,98 @@ func (h *SupplierHandler) ListSuppliers(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	rows, err := h.DB.Query(`
-		select
-			id,
-			tenant_id,
-			codigo,
-			nome,
-			tipo,
-			cpf,
-			rg,
-			cnpj,
-			inscricao_estadual,
-			nome_contato_principal,
-			telefone_contato_principal,
-			email_contato_principal,
-			cep,
-			nome_contato_secundario,
-			telefone_contato_secundario,
-			email_contato_secundario,
-			logradouro,
-			numero,
-			complemento,
-			bairro,
-			codigo_cidade,
-			cidade,
-			uf,
-			observacoes,
-			ativo
-		from suppliers
-		where tenant_id = $1
-		order by nome asc
-	`, tenantID)
+	// 3) filtros / paginação
+	q := strings.TrimSpace(r.URL.Query().Get("q"))
+	pageStr := r.URL.Query().Get("page")
+	sizeStr := r.URL.Query().Get("page_size")
+
+	page := 1
+	pageSize := 50
+
+	if v, errConv := strconv.Atoi(pageStr); errConv == nil && v > 0 {
+		page = v
+	}
+	if v, errConv := strconv.Atoi(sizeStr); errConv == nil && v > 0 && v <= 200 {
+		pageSize = v
+	}
+
+	offset := (page - 1) * pageSize
+
+	var rows *sql.Rows
+
+	// 4) query com ou sem filtro
+	if q != "" {
+		rows, err = h.DB.Query(`
+			select
+				id,
+				tenant_id,
+				codigo,
+				nome,
+				tipo,
+				cpf,
+				rg,
+				cnpj,
+				inscricao_estadual,
+				nome_contato_principal,
+				telefone_contato_principal,
+				email_contato_principal,
+				cep,
+				nome_contato_secundario,
+				telefone_contato_secundario,
+				email_contato_secundario,
+				logradouro,
+				numero,
+				complemento,
+				bairro,
+				codigo_cidade,
+				cidade,
+				uf,
+				observacoes,
+				ativo
+			from suppliers
+			where tenant_id = $1
+			  and (
+			       codigo = $2
+			       or nome ilike '%' || $2 || '%'
+			  )
+			order by nome asc
+			limit $3 offset $4
+		`, tenantID, q, pageSize, offset)
+	} else {
+		rows, err = h.DB.Query(`
+			select
+				id,
+				tenant_id,
+				codigo,
+				nome,
+				tipo,
+				cpf,
+				rg,
+				cnpj,
+				inscricao_estadual,
+				nome_contato_principal,
+				telefone_contato_principal,
+				email_contato_principal,
+				cep,
+				nome_contato_secundario,
+				telefone_contato_secundario,
+				email_contato_secundario,
+				logradouro,
+				numero,
+				complemento,
+				bairro,
+				codigo_cidade,
+				cidade,
+				uf,
+				observacoes,
+				ativo
+			from suppliers
+			where tenant_id = $1
+			order by nome asc
+			limit $2 offset $3
+		`, tenantID, pageSize, offset)
+	}
+
 	if err != nil {
 		http.Error(w, "erro ao listar fornecedores: "+err.Error(), http.StatusInternalServerError)
 		return

@@ -17,19 +17,28 @@ import (
 
 // Representa o produto conforme o que existe HOJE na tabela
 type Product struct {
-	ID       string `json:"id"`
-	TenantID string `json:"tenant_id"`
-	Code     string `json:"code"`
-	Name     string `json:"name"`
+	ID             string  `json:"id"`
+	TenantID       string  `json:"tenant_id"`
+	Code           string  `json:"code"`
+	Name           string  `json:"name"`
+	CategoryID     *string `json:"category_id,omitempty"`
+	SupplierID     *string `json:"supplier_id,omitempty"`
+	ManufacturerID *string `json:"manufacturer_id,omitempty"`
 }
 
 // Entrada de criação/edição: por enquanto só nome
 type ProductCreateInput struct {
-	Name string `json:"name"`
+	Name           string  `json:"name"`
+	CategoryID     *string `json:"category_id"`
+	SupplierID     *string `json:"supplier_id"`
+	ManufacturerID *string `json:"manufacturer_id"`
 }
 
 type ProductUpdateInput struct {
-	Name string `json:"name"`
+	Name           string  `json:"name"`
+	CategoryID     *string `json:"category_id"`
+	SupplierID     *string `json:"supplier_id"`
+	ManufacturerID *string `json:"manufacturer_id"`
 }
 
 // ============================================================
@@ -161,24 +170,31 @@ func (h *ProductHandler) CreateProduct(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, err = h.DB.Exec(`
-		insert into products (id, tenant_id, code, name)
-		values ($1, $2, $3, $4)
+		insert into products (id, tenant_id, code, name, category_id, supplier_id, manufacturer_id)
+		values ($1, $2, $3, $4, $5, $6, $7)
 	`,
 		id,
 		tenantID,
 		nextCode,
 		in.Name,
+		in.CategoryID,
+		in.SupplierID,
+		in.ManufacturerID,
 	)
+
 	if err != nil {
 		http.Error(w, "erro ao salvar produto: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	prod := Product{
-		ID:       id,
-		TenantID: tenantID,
-		Code:     nextCode,
-		Name:     in.Name,
+		ID:             id,
+		TenantID:       tenantID,
+		Code:           nextCode,
+		Name:           in.Name,
+		CategoryID:     in.CategoryID,
+		SupplierID:     in.SupplierID,
+		ManufacturerID: in.ManufacturerID,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -209,10 +225,13 @@ func (h *ProductHandler) ListProducts(w http.ResponseWriter, r *http.Request) {
 			id,
 			tenant_id,
 			code,
-			name
-		  from products
-		 where tenant_id = $1
-		 order by name asc
+			name,
+			category_id,
+			supplier_id,
+			manufacturer_id
+		from products
+		where tenant_id = $1
+		order by name asc
 	`, tenantID)
 
 	if err != nil {
@@ -224,16 +243,38 @@ func (h *ProductHandler) ListProducts(w http.ResponseWriter, r *http.Request) {
 	products := make([]Product, 0)
 
 	for rows.Next() {
-		var p Product
+		var (
+			p              Product
+			categoryID     sql.NullString
+			supplierID     sql.NullString
+			manufacturerID sql.NullString
+		)
+
 		if err := rows.Scan(
 			&p.ID,
 			&p.TenantID,
 			&p.Code,
 			&p.Name,
+			&categoryID,
+			&supplierID,
+			&manufacturerID,
 		); err != nil {
-			http.Error(w, "erro ao ler produtos: "+err.Error(), http.StatusInternalServerError)
-			return
+			// ...
 		}
+
+		if categoryID.Valid {
+			val := categoryID.String
+			p.CategoryID = &val
+		}
+		if supplierID.Valid {
+			val := supplierID.String
+			p.SupplierID = &val
+		}
+		if manufacturerID.Valid {
+			val := manufacturerID.String
+			p.ManufacturerID = &val
+		}
+
 		products = append(products, p)
 	}
 
@@ -268,23 +309,47 @@ func (h *ProductHandler) GetProductByID(
 		return
 	}
 
-	var p Product
+	var (
+		p              Product
+		categoryID     sql.NullString
+		supplierID     sql.NullString
+		manufacturerID sql.NullString
+	)
 
 	err = h.DB.QueryRow(`
 		select
 			id,
 			tenant_id,
 			code,
-			name
+			name,
+			category_id,
+			supplier_id,
+			manufacturer_id
 		from products
 		where id = $1
-		  and tenant_id = $2
+		and tenant_id = $2
 	`, id, tenantID).Scan(
 		&p.ID,
 		&p.TenantID,
 		&p.Code,
 		&p.Name,
+		&categoryID,
+		&supplierID,
+		&manufacturerID,
 	)
+
+	if categoryID.Valid {
+		val := categoryID.String
+		p.CategoryID = &val
+	}
+	if supplierID.Valid {
+		val := supplierID.String
+		p.SupplierID = &val
+	}
+	if manufacturerID.Valid {
+		val := manufacturerID.String
+		p.ManufacturerID = &val
+	}
 
 	if err == sql.ErrNoRows {
 		http.Error(w, "produto não encontrado", http.StatusNotFound)
@@ -337,11 +402,17 @@ func (h *ProductHandler) UpdateProduct(
 
 	res, err := h.DB.Exec(`
 		update products
-		   set name = $1
-		 where id = $2
-		   and tenant_id = $3
+		set name            = $1,
+			category_id      = $2,
+			supplier_id      = $3,
+			manufacturer_id  = $4
+		where id = $5
+		and tenant_id = $6
 	`,
 		in.Name,
+		in.CategoryID,
+		in.SupplierID,
+		in.ManufacturerID,
 		id,
 		tenantID,
 	)

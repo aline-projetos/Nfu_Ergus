@@ -1,8 +1,30 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Package, Check, X, CheckCircle2, Info, Search, Plus, Calendar, Image } from 'lucide-react';
+import { Package, Check, X, CheckCircle2, Info, Search, Plus, Image } from 'lucide-react';
 import { toast } from 'sonner';
 import { fiscalOrigins, Promotion } from '@/data/mockProducts';
+import {
+  Product,
+  createProduct,
+  getProductById,
+  updateProduct,
+  ProductCreateInput,
+  ProductUpdateInput,
+} from '@/lib/api/products';
+import {
+  searchCategories,
+  searchManufacturers,
+  searchSuppliers,
+  Category,
+  Manufacturer,
+  Supplier,
+} from '@/lib/api/lookups';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface FormData {
   // Step 1: Dados Principais
@@ -61,6 +83,11 @@ interface FormData {
   variationImageLink: string;
   videoLink: string;
   otherLinks: string;
+  categoryId: string;
+  supplierId: string;
+  supplierName: string;
+  manufacturerId: string;
+  manufacturerName: string;
 }
 
 const initialFormData: FormData = {
@@ -115,6 +142,11 @@ const initialFormData: FormData = {
   variationImageLink: '',
   videoLink: '',
   otherLinks: '',
+  categoryId: '',
+  supplierId: '',
+  supplierName: '',
+  manufacturerId: '',
+  manufacturerName: '',
 };
 
 const steps = [
@@ -133,21 +165,173 @@ interface VariationCard {
   url: string;
 }
 
+const SearchInput = ({
+    value,
+    onChange,
+    placeholder,
+    error,
+    onSearch,
+  }: {
+    value: string;
+    onChange: (v: string) => void;
+    placeholder: string;
+    error?: boolean;
+    onSearch?: (term: string) => void;
+  }) => (
+    <div className="relative">
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className={`input-field pr-10 ${error ? 'error' : ''}`}
+      />
+      <button
+        type="button"
+        onClick={() => onSearch?.(value)}
+        className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded hover:bg-muted transition-colors"
+      >
+        <Search className="w-4 h-4 text-muted-foreground" />
+      </button>
+    </div>
+  );
+
+
 export function ProductWizard() {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEditing = !!id;
-  
+
   const [currentStep, setCurrentStep] = useState(1);
   const [visitedSteps, setVisitedSteps] = useState<number[]>([1]);
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
   const [promotions, setPromotions] = useState<Promotion[]>([]);
-  const [variationCards, setVariationCards] = useState<VariationCard[]>([
+  const [variationCards] = useState<VariationCard[]>([
     { id: '1', description: 'Variação 1', position: '1', url: '/variacao-1' },
     { id: '2', description: 'Variação 2', position: '2', url: '/variacao-2' },
     { id: '3', description: 'Variação 3', position: '3', url: '/variacao-3' },
   ]);
+  const [isLoadingProduct, setIsLoadingProduct] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const [categoryResults, setCategoryResults] = useState<Category[]>([]);
+  const [manufacturerResults, setManufacturerResults] = useState<Manufacturer[]>([]);
+  const [supplierResults, setSupplierResults] = useState<Supplier[]>([]);
+
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [isManufacturerModalOpen, setIsManufacturerModalOpen] = useState(false);
+  const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false);
+
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [manufacturerFilter, setManufacturerFilter] = useState('');
+  const [supplierFilter, setSupplierFilter] = useState('');
+
+  // ========== helpers de mapeamento para o backend ==========
+
+  const mapProductToFormData = (product: Product): FormData => {
+    const p = product as any;
+
+    return {
+      ...initialFormData,
+      code: p.code ?? '',
+      name: p.name ?? '',
+      reference: p.reference ?? '',
+      categoryCode: p.categoryCode ?? '',
+      categoryName: p.categoryName ?? '',
+      salePrice: p.price != null ? String(p.price) : '',
+      shortDescription: p.description ?? '',
+      longDescription: p.description ?? '',
+      metaTitle: p.metaTitle ?? '',
+      metaTag: p.metaTag ?? '',
+      metaDescription: p.metaDescription ?? '',
+      stock: '',
+      costPrice: '',
+      sku: '',
+      ean: '',
+      weight: '',
+      length: '',
+      height: '',
+      width: '',
+      ncm: '',
+      unit: '',
+      promotionCode: '',
+      promotionName: '',
+      promotionStart: '',
+      promotionEnd: '',
+      taxGroup: '',
+      ncmCode: '',
+      ncmDescription: '',
+      cestCode: '',
+      cestDescription: '',
+      pisCode: '',
+      pisDescription: '',
+      cofinsCode: '',
+      cofinsDescription: '',
+      fiscalOrigin: '',
+      variationType: '',
+      variationTypeCode: '',
+      variationSku: '',
+      variationEan: '',
+      variationWeight: '',
+      variationLength: '',
+      variationHeight: '',
+      variationWidth: '',
+      variationShortDesc: '',
+      variationLongDesc: '',
+      variationMetaTitle: '',
+      variationMetaTag: '',
+      variationMetaDesc: '',
+      variationImageLink: '',
+      videoLink: '',
+      otherLinks: '',
+      categoryId: p.category_id ?? '',
+      supplierId: p.supplier_id ?? '',
+      supplierName: p.supplier_name ?? '',
+      manufacturerId: p.manufacturer_id ?? '',
+      manufacturerName: p.manufacturer_name ?? '',
+    };
+  };
+
+  const buildCreatePayload = (data: FormData): ProductCreateInput => {
+    return {
+      name: data.name.trim(),
+      category_id: data.categoryId || null,
+      supplier_id: data.supplierId || null,
+      manufacturer_id: data.manufacturerId || null,
+    };
+  };
+
+  const buildUpdatePayload = (data: FormData): ProductUpdateInput => {
+    return {
+      name: data.name.trim(),
+      category_id: data.categoryId || null,
+      supplier_id: data.supplierId || null,
+      manufacturer_id: data.manufacturerId || null,
+    };
+  };
+
+  // ========== efeitos: carregar produto ao editar ==========
+
+  useEffect(() => {
+    const loadProduct = async () => {
+      if (!isEditing || !id) return;
+      try {
+        setIsLoadingProduct(true);
+        const product = await getProductById(id);
+        setFormData(mapProductToFormData(product));
+      } catch (error) {
+        console.error('Erro ao carregar produto:', error);
+        toast.error('Não foi possível carregar os dados do produto.');
+      } finally {
+        setIsLoadingProduct(false);
+      }
+    };
+
+    loadProduct();
+  }, [isEditing, id]);
+
+  // ========== helpers gerais do formulário ==========
 
   const updateField = (field: keyof FormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -157,23 +341,19 @@ export function ProductWizard() {
   };
 
   const handleNumericInput = (field: keyof FormData, value: string) => {
-    // Allow only numbers and decimal point
     const numericValue = value.replace(/[^0-9.,]/g, '').replace(',', '.');
     updateField(field, numericValue);
   };
 
   const validateStep1 = () => {
     const newErrors: Partial<Record<keyof FormData, string>> = {};
-    
-    if (!formData.code.trim()) {
-      newErrors.code = 'Código é obrigatório';
-    }
+
     if (!formData.name.trim()) {
       newErrors.name = 'Nome é obrigatório';
     }
 
     setErrors(newErrors);
-    
+
     if (Object.keys(newErrors).length > 0) {
       Object.values(newErrors).forEach(error => {
         if (error) toast.error(error);
@@ -182,6 +362,35 @@ export function ProductWizard() {
     }
     return true;
   };
+
+  // ========== salvar (create/update) ==========
+
+  const saveProduct = async () => {
+    if (!validateStep1()) return;
+
+    try {
+      setIsSaving(true);
+
+      if (isEditing && id) {
+        const payload = buildUpdatePayload(formData);
+        await updateProduct(id, payload);
+        toast.success('Produto atualizado com sucesso');
+      } else {
+        const payload = buildCreatePayload(formData);
+        await createProduct(payload);
+        toast.success('Produto cadastrado com sucesso');
+      }
+
+      navigate('/catalogo/produtos');
+    } catch (error) {
+      console.error('Erro ao salvar produto:', error);
+      toast.error('Não foi possível salvar o produto.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // ========== navegação do wizard ==========
 
   const handleConfirm = () => {
     if (currentStep === 1) {
@@ -193,10 +402,7 @@ export function ProductWizard() {
       setCurrentStep(currentStep + 1);
       setVisitedSteps(prev => [...new Set([...prev, currentStep + 1])]);
     } else {
-      // Save mock data
-      console.log('Saving product:', formData);
-      toast.success(isEditing ? 'Produto atualizado com sucesso' : 'Produto cadastrado com sucesso');
-      navigate('/catalogo/produtos');
+      void saveProduct();
     }
   };
 
@@ -215,7 +421,7 @@ export function ProductWizard() {
       toast.error('Preencha o código e nome da promoção');
       return;
     }
-    
+
     const newPromotion: Promotion = {
       id: String(Date.now()),
       code: formData.promotionCode,
@@ -223,7 +429,7 @@ export function ProductWizard() {
       startDate: formData.promotionStart,
       endDate: formData.promotionEnd,
     };
-    
+
     setPromotions(prev => [...prev, newPromotion]);
     setFormData(prev => ({
       ...prev,
@@ -235,38 +441,157 @@ export function ProductWizard() {
     toast.success('Promoção adicionada');
   };
 
-  const removePromotion = (id: string) => {
-    setPromotions(prev => prev.filter(p => p.id !== id));
+  const removePromotion = (promoId: string) => {
+    setPromotions(prev => prev.filter(p => p.id !== promoId));
   };
 
-  const SearchInput = ({ 
-    value, 
-    onChange, 
-    placeholder, 
-    error 
-  }: { 
-    value: string; 
-    onChange: (v: string) => void; 
-    placeholder: string; 
-    error?: boolean;
-  }) => (
-    <div className="relative">
-      <input
-        type="text"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className={`input-field pr-10 ${error ? 'error' : ''}`}
-      />
-      <button 
-        type="button"
-        className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded hover:bg-muted transition-colors"
-      >
-        <Search className="w-4 h-4 text-muted-foreground" />
-      </button>
-    </div>
-  );
+  // ========== buscas e seleção: Categoria / Fabricante / Fornecedor ==========
 
+  const handleSearchCategory = async () => {
+    try {
+      const term = formData.categoryCode || formData.categoryName;
+      if (!term.trim()) {
+        toast.error('Informe código ou nome da categoria para buscar');
+        return;
+      }
+
+      const results = await searchCategories(term.trim(), 1, 20);
+
+      if (results.length === 0) {
+        toast.error('Nenhuma categoria encontrada');
+        setCategoryResults([]);
+        setIsCategoryModalOpen(false);
+        return;
+      }
+
+      if (results.length === 1) {
+        const cat = results[0];
+        setFormData(prev => ({
+          ...prev,
+          categoryId: cat.id,
+          categoryCode: cat.code,
+          categoryName: cat.name,
+        }));
+        toast.success('Categoria selecionada');
+        return;
+      }
+
+      setCategoryResults(results);
+      setCategoryFilter('');
+      setIsCategoryModalOpen(true);
+    } catch (err) {
+      console.error('Erro ao buscar categorias', err);
+      toast.error('Erro ao buscar categorias');
+    }
+  };
+
+  const handleSelectCategory = (cat: Category) => {
+    setFormData(prev => ({
+      ...prev,
+      categoryId: cat.id,
+      categoryCode: cat.code,
+      categoryName: cat.name,
+    }));
+    setIsCategoryModalOpen(false);
+  };
+
+  // FABRICANTE
+  const handleSearchManufacturer = async () => {
+    try {
+      const term = formData.manufacturerName.trim();
+
+      if (!term) {
+        toast.error('Informe o nome ou código do fabricante para buscar');
+        return;
+      }
+
+      const results = await searchManufacturers(term, 1, 20);
+
+      if (results.length === 0) {
+        toast.error('Nenhum fabricante encontrado');
+        setManufacturerResults([]);
+        setIsManufacturerModalOpen(false);
+        return;
+      }
+
+      if (results.length === 1) {
+        const mf = results[0];
+        setFormData(prev => ({
+          ...prev,
+          manufacturerId: mf.id,
+          manufacturerName: mf.nome,
+        }));
+        toast.success('Fabricante selecionado');
+        return;
+      }
+
+      setManufacturerResults(results);
+      setManufacturerFilter('');
+      setIsManufacturerModalOpen(true);
+    } catch (err) {
+      console.error('Erro ao buscar fabricantes', err);
+      toast.error('Erro ao buscar fabricantes');
+    }
+  };
+
+  // FORNECEDOR
+  const handleSearchSupplier = async () => {
+    try {
+      const term = formData.supplierName.trim();
+
+      if (!term) {
+        toast.error('Informe o nome ou código do fornecedor para buscar');
+        return;
+      }
+
+      const results = await searchSuppliers(term, 1, 20);
+
+      if (results.length === 0) {
+        toast.error('Nenhum fornecedor encontrado');
+        setSupplierResults([]);
+        setIsSupplierModalOpen(false);
+        return;
+      }
+
+      if (results.length === 1) {
+        const sp = results[0];
+        setFormData(prev => ({
+          ...prev,
+          supplierId: sp.id,
+          supplierName: sp.nome,
+        }));
+        toast.success('Fornecedor selecionado');
+        return;
+      }
+
+      setSupplierResults(results);
+      setSupplierFilter('');
+      setIsSupplierModalOpen(true);
+    } catch (err) {
+      console.error('Erro ao buscar fornecedores', err);
+      toast.error('Erro ao buscar fornecedores');
+    }
+  };
+
+  const handleSelectManufacturer = (mf: Manufacturer) => {
+    setFormData(prev => ({
+      ...prev,
+      manufacturerId: mf.id,
+      manufacturerName: mf.nome,
+    }));
+    setIsManufacturerModalOpen(false);
+  };
+
+  const handleSelectSupplier = (sp: Supplier) => {
+    setFormData(prev => ({
+      ...prev,
+      supplierId: sp.id,
+      supplierName: sp.nome,
+    }));
+    setIsSupplierModalOpen(false);
+  };
+
+  
   return (
     <div className="animate-fade-in max-w-6xl mx-auto">
       <div className="card-dashboard">
@@ -275,9 +600,16 @@ export function ProductWizard() {
           <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
             <Package className="w-5 h-5 text-primary" />
           </div>
-          <h1 className="text-xl font-semibold text-foreground">
-            {isEditing ? 'Editar Produto' : 'Produtos'}
-          </h1>
+          <div className="flex flex-col">
+            <h1 className="text-xl font-semibold text-foreground">
+              {isEditing ? 'Editar Produto' : 'Novo Produto'}
+            </h1>
+            {isLoadingProduct && (
+              <span className="text-xs text-muted-foreground mt-1">
+                Carregando dados do produto...
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="flex">
@@ -285,7 +617,8 @@ export function ProductWizard() {
           <div className="w-64 border-r border-border p-6">
             <div className="space-y-2">
               {steps.map((step, index) => {
-                const isCompleted = visitedSteps.includes(step.id) && step.id < currentStep;
+                const isCompleted =
+                  visitedSteps.includes(step.id) && step.id < currentStep;
                 const isActive = step.id === currentStep;
                 const canClick = visitedSteps.includes(step.id) && step.id < currentStep;
 
@@ -298,9 +631,11 @@ export function ProductWizard() {
                         isCompleted ? 'completed' : isActive ? 'active' : 'pending'
                       } ${canClick ? 'cursor-pointer' : 'cursor-default'}`}
                     >
-                      <div className={`stepper-number ${
-                        isCompleted ? 'completed' : isActive ? 'active' : 'pending'
-                      }`}>
+                      <div
+                        className={`stepper-number ${
+                          isCompleted ? 'completed' : isActive ? 'active' : 'pending'
+                        }`}
+                      >
                         {isCompleted ? (
                           <CheckCircle2 className="w-4 h-4" />
                         ) : (
@@ -309,7 +644,7 @@ export function ProductWizard() {
                       </div>
                       <span className="text-sm">{step.label}</span>
                     </button>
-                    
+
                     {index < steps.length - 1 && (
                       <div className="ml-7 h-4 border-l-2 border-border" />
                     )}
@@ -324,22 +659,27 @@ export function ProductWizard() {
             {/* Step 1: Dados Principais */}
             {currentStep === 1 && (
               <div className="animate-slide-in-right space-y-6">
-                <h2 className="text-lg font-medium text-foreground mb-6">Dados Principais</h2>
-                
+                <h2 className="text-lg font-medium text-foreground mb-6">
+                  Dados Principais
+                </h2>
+
                 <div className="grid grid-cols-3 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-2">
-                      Código <span className="text-destructive">*</span>
+                      Código
                     </label>
                     <input
                       type="text"
-                      value={formData.code}
-                      onChange={(e) => updateField('code', e.target.value)}
-                      placeholder="Ex: PROD001"
-                      className={`input-field ${errors.code ? 'error' : ''}`}
+                      value={
+                        isEditing
+                          ? formData.code || ''
+                          : 'Gerado automaticamente'
+                      }
+                      disabled
+                      className="input-field opacity-70 cursor-not-allowed"
                     />
                   </div>
-                  
+
                   <div className="col-span-2">
                     <label className="block text-sm font-medium text-foreground mb-2">
                       Nome <span className="text-destructive">*</span>
@@ -367,7 +707,7 @@ export function ProductWizard() {
                       className="input-field"
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-2">
                       Referência
@@ -404,9 +744,10 @@ export function ProductWizard() {
                       value={formData.categoryName}
                       onChange={(v) => updateField('categoryName', v)}
                       placeholder="Buscar categoria"
+                      onSearch={handleSearchCategory}
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-2">
                       Preço de Custo
@@ -417,6 +758,38 @@ export function ProductWizard() {
                       onChange={(e) => handleNumericInput('costPrice', e.target.value)}
                       placeholder="0.00"
                       className="input-field"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="col-span-3">
+                    <h3 className="text-sm font-medium text-muted-foreground mb-2">
+                      Relações do Produto
+                    </h3>
+                  </div>
+
+                  <div className="col-span-3 md:col-span-3">
+                    <label className="block text-sm font-medium text-foreground mb-2">
+                      Fornecedor
+                    </label>
+                    <SearchInput
+                      value={formData.supplierName}
+                      onChange={(v) => updateField('supplierName', v)}
+                      placeholder="Buscar fornecedor por nome ou código"
+                      onSearch={handleSearchSupplier}
+                    />
+                  </div>
+
+                  <div className="col-span-3 md:col-span-3">
+                    <label className="block text-sm font-medium text-foreground mb-2">
+                      Fabricante
+                    </label>
+                    <SearchInput
+                      value={formData.manufacturerName}
+                      onChange={(v) => updateField('manufacturerName', v)}
+                      placeholder="Buscar fabricante por nome ou código"
+                      onSearch={handleSearchManufacturer}
                     />
                   </div>
                 </div>
@@ -434,7 +807,7 @@ export function ProductWizard() {
                       className="input-field"
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-2">
                       Código SKU
@@ -475,7 +848,7 @@ export function ProductWizard() {
                       className="input-field"
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-2">
                       Comprimento (cm)
@@ -534,8 +907,10 @@ export function ProductWizard() {
             {/* Step 2: Configurações */}
             {currentStep === 2 && (
               <div className="animate-slide-in-right space-y-6">
-                <h2 className="text-lg font-medium text-foreground mb-6">Configurações</h2>
-                
+                <h2 className="text-lg font-medium text-foreground mb-6">
+                  Configurações
+                </h2>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-2">
@@ -547,7 +922,7 @@ export function ProductWizard() {
                       placeholder="Buscar unidade"
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-2">
                       Descrição Curta
@@ -555,7 +930,9 @@ export function ProductWizard() {
                     <input
                       type="text"
                       value={formData.shortDescription}
-                      onChange={(e) => updateField('shortDescription', e.target.value)}
+                      onChange={(e) =>
+                        updateField('shortDescription', e.target.value)
+                      }
                       placeholder="Descrição resumida"
                       className="input-field"
                     />
@@ -568,7 +945,9 @@ export function ProductWizard() {
                   </label>
                   <textarea
                     value={formData.longDescription}
-                    onChange={(e) => updateField('longDescription', e.target.value)}
+                    onChange={(e) =>
+                      updateField('longDescription', e.target.value)
+                    }
                     placeholder="Descrição detalhada do produto"
                     rows={5}
                     className="input-field resize-none"
@@ -588,7 +967,7 @@ export function ProductWizard() {
                       className="input-field"
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-2">
                       Meta Tag
@@ -609,7 +988,9 @@ export function ProductWizard() {
                   </label>
                   <textarea
                     value={formData.metaDescription}
-                    onChange={(e) => updateField('metaDescription', e.target.value)}
+                    onChange={(e) =>
+                      updateField('metaDescription', e.target.value)
+                    }
                     placeholder="Descrição para SEO"
                     rows={3}
                     className="input-field resize-none"
@@ -621,8 +1002,10 @@ export function ProductWizard() {
             {/* Step 3: Regra Comercial */}
             {currentStep === 3 && (
               <div className="animate-slide-in-right space-y-6">
-                <h2 className="text-lg font-medium text-foreground mb-6">Regra Comercial</h2>
-                
+                <h2 className="text-lg font-medium text-foreground mb-6">
+                  Regra Comercial
+                </h2>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-2">
@@ -634,7 +1017,7 @@ export function ProductWizard() {
                       placeholder="Buscar promoção"
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-2">
                       Nome da Promoção
@@ -642,7 +1025,9 @@ export function ProductWizard() {
                     <input
                       type="text"
                       value={formData.promotionName}
-                      onChange={(e) => updateField('promotionName', e.target.value)}
+                      onChange={(e) =>
+                        updateField('promotionName', e.target.value)
+                      }
                       placeholder="Nome da promoção"
                       className="input-field"
                     />
@@ -658,12 +1043,14 @@ export function ProductWizard() {
                       <input
                         type="date"
                         value={formData.promotionStart}
-                        onChange={(e) => updateField('promotionStart', e.target.value)}
+                        onChange={(e) =>
+                          updateField('promotionStart', e.target.value)
+                        }
                         className="input-field"
                       />
                     </div>
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-2">
                       Fim da Promoção
@@ -672,7 +1059,9 @@ export function ProductWizard() {
                       <input
                         type="date"
                         value={formData.promotionEnd}
-                        onChange={(e) => updateField('promotionEnd', e.target.value)}
+                        onChange={(e) =>
+                          updateField('promotionEnd', e.target.value)
+                        }
                         className="input-field"
                       />
                     </div>
@@ -689,15 +1078,19 @@ export function ProductWizard() {
 
                 {promotions.length > 0 && (
                   <div className="mt-4">
-                    <h3 className="text-sm font-medium text-foreground mb-3">Promoções Adicionadas</h3>
+                    <h3 className="text-sm font-medium text-foreground mb-3">
+                      Promoções Adicionadas
+                    </h3>
                     <div className="flex flex-wrap gap-2">
-                      {promotions.map(promo => (
-                        <div 
+                      {promotions.map((promo) => (
+                        <div
                           key={promo.id}
                           className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted text-sm"
                         >
-                          <span>{promo.code} - {promo.name}</span>
-                          <button 
+                          <span>
+                            {promo.code} - {promo.name}
+                          </span>
+                          <button
                             onClick={() => removePromotion(promo.id)}
                             className="text-muted-foreground hover:text-destructive transition-colors"
                           >
@@ -714,8 +1107,10 @@ export function ProductWizard() {
             {/* Step 4: Tributação */}
             {currentStep === 4 && (
               <div className="animate-slide-in-right space-y-6">
-                <h2 className="text-lg font-medium text-foreground mb-6">Tributação</h2>
-                
+                <h2 className="text-lg font-medium text-foreground mb-6">
+                  Tributação
+                </h2>
+
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-2">
                     Grupo de Tributação
@@ -738,7 +1133,7 @@ export function ProductWizard() {
                       placeholder="Buscar NCM"
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-2">
                       Descrição NCM
@@ -746,7 +1141,9 @@ export function ProductWizard() {
                     <input
                       type="text"
                       value={formData.ncmDescription}
-                      onChange={(e) => updateField('ncmDescription', e.target.value)}
+                      onChange={(e) =>
+                        updateField('ncmDescription', e.target.value)
+                      }
                       placeholder="Descrição do NCM"
                       className="input-field"
                     />
@@ -764,7 +1161,7 @@ export function ProductWizard() {
                       placeholder="Buscar CEST"
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-2">
                       Descrição CEST
@@ -772,7 +1169,9 @@ export function ProductWizard() {
                     <input
                       type="text"
                       value={formData.cestDescription}
-                      onChange={(e) => updateField('cestDescription', e.target.value)}
+                      onChange={(e) =>
+                        updateField('cestDescription', e.target.value)
+                      }
                       placeholder="Descrição do CEST"
                       className="input-field"
                     />
@@ -790,7 +1189,7 @@ export function ProductWizard() {
                       placeholder="Buscar PIS"
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-2">
                       Descrição PIS
@@ -798,7 +1197,9 @@ export function ProductWizard() {
                     <input
                       type="text"
                       value={formData.pisDescription}
-                      onChange={(e) => updateField('pisDescription', e.target.value)}
+                      onChange={(e) =>
+                        updateField('pisDescription', e.target.value)
+                      }
                       placeholder="Descrição do PIS"
                       className="input-field"
                     />
@@ -816,7 +1217,7 @@ export function ProductWizard() {
                       placeholder="Buscar COFINS"
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-2">
                       Descrição COFINS
@@ -824,7 +1225,9 @@ export function ProductWizard() {
                     <input
                       type="text"
                       value={formData.cofinsDescription}
-                      onChange={(e) => updateField('cofinsDescription', e.target.value)}
+                      onChange={(e) =>
+                        updateField('cofinsDescription', e.target.value)
+                      }
                       placeholder="Descrição do COFINS"
                       className="input-field"
                     />
@@ -837,11 +1240,13 @@ export function ProductWizard() {
                   </label>
                   <select
                     value={formData.fiscalOrigin}
-                    onChange={(e) => updateField('fiscalOrigin', e.target.value)}
+                    onChange={(e) =>
+                      updateField('fiscalOrigin', e.target.value)
+                    }
                     className="input-field"
                   >
                     <option value="">Selecione a origem fiscal</option>
-                    {fiscalOrigins.map(origin => (
+                    {fiscalOrigins.map((origin) => (
                       <option key={origin.value} value={origin.value}>
                         {origin.label}
                       </option>
@@ -854,8 +1259,10 @@ export function ProductWizard() {
             {/* Step 5: Variações */}
             {currentStep === 5 && (
               <div className="animate-slide-in-right space-y-6">
-                <h2 className="text-lg font-medium text-foreground mb-6">Variações</h2>
-                
+                <h2 className="text-lg font-medium text-foreground mb-6">
+                  Variações
+                </h2>
+
                 <div className="grid grid-cols-3 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-2">
@@ -864,12 +1271,14 @@ export function ProductWizard() {
                     <input
                       type="text"
                       value={formData.variationTypeCode}
-                      onChange={(e) => updateField('variationTypeCode', e.target.value)}
+                      onChange={(e) =>
+                        updateField('variationTypeCode', e.target.value)
+                      }
                       placeholder="Código"
                       className="input-field"
                     />
                   </div>
-                  
+
                   <div className="col-span-2">
                     <label className="block text-sm font-medium text-foreground mb-2">
                       Tipo de Variação
@@ -890,12 +1299,14 @@ export function ProductWizard() {
                     <input
                       type="text"
                       value={formData.variationSku}
-                      onChange={(e) => updateField('variationSku', e.target.value)}
+                      onChange={(e) =>
+                        updateField('variationSku', e.target.value)
+                      }
                       placeholder="SKU da variação"
                       className="input-field"
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-2">
                       EAN
@@ -903,7 +1314,9 @@ export function ProductWizard() {
                     <input
                       type="text"
                       value={formData.variationEan}
-                      onChange={(e) => updateField('variationEan', e.target.value)}
+                      onChange={(e) =>
+                        updateField('variationEan', e.target.value)
+                      }
                       placeholder="EAN da variação"
                       className="input-field"
                     />
@@ -918,12 +1331,14 @@ export function ProductWizard() {
                     <input
                       type="text"
                       value={formData.variationWeight}
-                      onChange={(e) => handleNumericInput('variationWeight', e.target.value)}
+                      onChange={(e) =>
+                        handleNumericInput('variationWeight', e.target.value)
+                      }
                       placeholder="0.00"
                       className="input-field"
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-2">
                       Comprimento (cm)
@@ -931,7 +1346,9 @@ export function ProductWizard() {
                     <input
                       type="text"
                       value={formData.variationLength}
-                      onChange={(e) => handleNumericInput('variationLength', e.target.value)}
+                      onChange={(e) =>
+                        handleNumericInput('variationLength', e.target.value)
+                      }
                       placeholder="0"
                       className="input-field"
                     />
@@ -944,7 +1361,9 @@ export function ProductWizard() {
                     <input
                       type="text"
                       value={formData.variationHeight}
-                      onChange={(e) => handleNumericInput('variationHeight', e.target.value)}
+                      onChange={(e) =>
+                        handleNumericInput('variationHeight', e.target.value)
+                      }
                       placeholder="0"
                       className="input-field"
                     />
@@ -957,7 +1376,9 @@ export function ProductWizard() {
                     <input
                       type="text"
                       value={formData.variationWidth}
-                      onChange={(e) => handleNumericInput('variationWidth', e.target.value)}
+                      onChange={(e) =>
+                        handleNumericInput('variationWidth', e.target.value)
+                      }
                       placeholder="0"
                       className="input-field"
                     />
@@ -972,12 +1393,14 @@ export function ProductWizard() {
                     <input
                       type="text"
                       value={formData.variationShortDesc}
-                      onChange={(e) => updateField('variationShortDesc', e.target.value)}
+                      onChange={(e) =>
+                        updateField('variationShortDesc', e.target.value)
+                      }
                       placeholder="Descrição curta da variação"
                       className="input-field"
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-2">
                       Local ou Link da Imagem
@@ -996,7 +1419,9 @@ export function ProductWizard() {
                   </label>
                   <textarea
                     value={formData.variationLongDesc}
-                    onChange={(e) => updateField('variationLongDesc', e.target.value)}
+                    onChange={(e) =>
+                      updateField('variationLongDesc', e.target.value)
+                    }
                     placeholder="Descrição detalhada da variação"
                     rows={3}
                     className="input-field resize-none"
@@ -1011,12 +1436,14 @@ export function ProductWizard() {
                     <input
                       type="text"
                       value={formData.variationMetaTitle}
-                      onChange={(e) => updateField('variationMetaTitle', e.target.value)}
+                      onChange={(e) =>
+                        updateField('variationMetaTitle', e.target.value)
+                      }
                       placeholder="Meta título"
                       className="input-field"
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-2">
                       Meta Tag
@@ -1024,7 +1451,9 @@ export function ProductWizard() {
                     <input
                       type="text"
                       value={formData.variationMetaTag}
-                      onChange={(e) => updateField('variationMetaTag', e.target.value)}
+                      onChange={(e) =>
+                        updateField('variationMetaTag', e.target.value)
+                      }
                       placeholder="Meta tags"
                       className="input-field"
                     />
@@ -1037,7 +1466,9 @@ export function ProductWizard() {
                     <input
                       type="text"
                       value={formData.variationMetaDesc}
-                      onChange={(e) => updateField('variationMetaDesc', e.target.value)}
+                      onChange={(e) =>
+                        updateField('variationMetaDesc', e.target.value)
+                      }
                       placeholder="Meta descrição"
                       className="input-field"
                     />
@@ -1046,19 +1477,27 @@ export function ProductWizard() {
 
                 {/* Variation Cards Grid */}
                 <div>
-                  <h3 className="text-sm font-medium text-foreground mb-3">Imagens da Variação</h3>
+                  <h3 className="text-sm font-medium text-foreground mb-3">
+                    Imagens da Variação
+                  </h3>
                   <div className="grid grid-cols-3 gap-4">
-                    {variationCards.map(card => (
-                      <div 
+                    {variationCards.map((card) => (
+                      <div
                         key={card.id}
                         className="p-4 rounded-lg border border-border bg-muted/30"
                       >
                         <div className="w-full h-24 rounded-lg bg-muted flex items-center justify-center mb-3">
                           <Image className="w-8 h-8 text-muted-foreground" />
                         </div>
-                        <p className="text-sm font-medium text-foreground mb-1">{card.description}</p>
-                        <p className="text-xs text-muted-foreground">Posição: {card.position}</p>
-                        <p className="text-xs text-muted-foreground truncate">{card.url}</p>
+                        <p className="text-sm font-medium text-foreground mb-1">
+                          {card.description}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Posição: {card.position}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {card.url}
+                        </p>
                       </div>
                     ))}
                   </div>
@@ -1072,12 +1511,14 @@ export function ProductWizard() {
                     <input
                       type="text"
                       value={formData.videoLink}
-                      onChange={(e) => updateField('videoLink', e.target.value)}
+                      onChange={(e) =>
+                        updateField('videoLink', e.target.value)
+                      }
                       placeholder="https://youtube.com/..."
                       className="input-field"
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-2">
                       Outros Links
@@ -1085,7 +1526,9 @@ export function ProductWizard() {
                     <input
                       type="text"
                       value={formData.otherLinks}
-                      onChange={(e) => updateField('otherLinks', e.target.value)}
+                      onChange={(e) =>
+                        updateField('otherLinks', e.target.value)
+                      }
                       placeholder="Links adicionais"
                       className="input-field"
                     />
@@ -1097,8 +1540,10 @@ export function ProductWizard() {
             {/* Step 6: Integração */}
             {currentStep === 6 && (
               <div className="animate-slide-in-right space-y-6">
-                <h2 className="text-lg font-medium text-foreground mb-6">Integração</h2>
-                
+                <h2 className="text-lg font-medium text-foreground mb-6">
+                  Integração
+                </h2>
+
                 <div className="p-6 bg-muted/50 rounded-lg border border-border">
                   <div className="flex items-start gap-4">
                     <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
@@ -1109,18 +1554,19 @@ export function ProductWizard() {
                         Configuração de integração do produto com outros canais
                       </h3>
                       <p className="text-sm text-muted-foreground leading-relaxed">
-                        Esta seção permite configurar integrações com sistemas externos, 
-                        como marketplaces (Mercado Livre, Amazon, etc.), e-commerce 
-                        (WooCommerce, Shopify, etc.) e outros ERPs. As configurações 
-                        estarão disponíveis após a conclusão do cadastro básico.
+                        Esta seção permite configurar integrações com sistemas
+                        externos, como marketplaces (Mercado Livre, Amazon,
+                        etc.), e-commerce (WooCommerce, Shopify, etc.) e outros
+                        ERPs. As configurações estarão disponíveis após a
+                        conclusão do cadastro básico.
                       </p>
                     </div>
                   </div>
                 </div>
 
-                <div className="p-4 bg-success/10 rounded-lg border border-success/20">
-                  <p className="text-sm text-success font-medium">
-                    ✓ Todos os dados foram preenchidos. Clique em Confirmar para salvar o produto.
+                <div className="p-4 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
+                  <p className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">
+                    ✓ Dados prontos. Clique em Confirmar para salvar o produto.
                   </p>
                 </div>
               </div>
@@ -1135,18 +1581,167 @@ export function ProductWizard() {
                 <X className="w-4 h-4" />
                 <span>Cancelar</span>
               </button>
-              
+
               <button
                 onClick={handleConfirm}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                disabled={isSaving}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-70 disabled:cursor-not-allowed transition-colors"
               >
                 <Check className="w-4 h-4" />
-                <span>Confirmar</span>
+                <span>
+                  {currentStep < 6
+                    ? 'Continuar'
+                    : isSaving
+                    ? 'Salvando...'
+                    : 'Confirmar'}
+                </span>
               </button>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Modais de seleção */}
+      <Dialog open={isCategoryModalOpen} onOpenChange={setIsCategoryModalOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Selecionar Categoria</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <input
+              type="text"
+              placeholder="Filtrar por código ou nome"
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="input-field"
+            />
+
+            <div className="max-h-64 overflow-y-auto border border-border rounded-md">
+              {categoryResults
+                .filter(cat => {
+                  if (!categoryFilter.trim()) return true;
+                  const term = categoryFilter.toLowerCase();
+                  return (
+                    cat.code.toLowerCase().includes(term) ||
+                    cat.name.toLowerCase().includes(term)
+                  );
+                })
+                .map(cat => (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => handleSelectCategory(cat)}
+                    className="w-full flex justify-between items-center px-3 py-2 text-left hover:bg-muted/70 border-b last:border-b-0 border-border"
+                  >
+                    <span className="text-sm font-medium">
+                      {cat.code} - {cat.name}
+                    </span>
+                  </button>
+                ))}
+              {categoryResults.length === 0 && (
+                <div className="px-3 py-4 text-sm text-muted-foreground">
+                  Nenhuma categoria encontrada.
+                </div>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isManufacturerModalOpen} onOpenChange={setIsManufacturerModalOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Selecionar Fabricante</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <input
+              type="text"
+              placeholder="Filtrar por código ou nome"
+              value={manufacturerFilter}
+              onChange={(e) => setManufacturerFilter(e.target.value)}
+              className="input-field"
+            />
+
+            <div className="max-h-64 overflow-y-auto border border-border rounded-md">
+              {manufacturerResults
+                .filter(mf => {
+                  if (!manufacturerFilter.trim()) return true;
+                  const term = manufacturerFilter.toLowerCase();
+                  return (
+                    mf.codigo.toLowerCase().includes(term) ||
+                    mf.nome.toLowerCase().includes(term)
+                  );
+                })
+                .map(mf => (
+                  <button
+                    key={mf.id}
+                    type="button"
+                    onClick={() => handleSelectManufacturer(mf)}
+                    className="w-full flex justify-between items-center px-3 py-2 text-left hover:bg-muted/70 border-b last:border-b-0 border-border"
+                  >
+                    <span className="text-sm font-medium">
+                      {mf.codigo} - {mf.nome}
+                    </span>
+                  </button>
+                ))}
+              {manufacturerResults.length === 0 && (
+                <div className="px-3 py-4 text-sm text-muted-foreground">
+                  Nenhum fabricante encontrado.
+                </div>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isSupplierModalOpen} onOpenChange={setIsSupplierModalOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Selecionar Fornecedor</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <input
+              type="text"
+              placeholder="Filtrar por código ou nome"
+              value={supplierFilter}
+              onChange={(e) => setSupplierFilter(e.target.value)}
+              className="input-field"
+            />
+
+            <div className="max-h-64 overflow-y-auto border border-border rounded-md">
+              {supplierResults
+                .filter(sp => {
+                  if (!supplierFilter.trim()) return true;
+                  const term = supplierFilter.toLowerCase();
+                  return (
+                    sp.codigo.toLowerCase().includes(term) ||
+                    sp.nome.toLowerCase().includes(term)
+                  );
+                })
+                .map(sp => (
+                  <button
+                    key={sp.id}
+                    type="button"
+                    onClick={() => handleSelectSupplier(sp)}
+                    className="w-full flex justify-between items-center px-3 py-2 text-left hover:bg-muted/70 border-b last:border-b-0 border-border"
+                  >
+                    <span className="text-sm font-medium">
+                      {sp.codigo} - {sp.nome}
+                    </span>
+                  </button>
+                ))}
+              {supplierResults.length === 0 && (
+                <div className="px-3 py-4 text-sm text-muted-foreground">
+                  Nenhum fornecedor encontrado.
+                </div>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
