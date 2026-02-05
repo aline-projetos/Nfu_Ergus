@@ -10,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { getAuthHeaders, getBaseUrl, getTokenKey } from '@/lib/utils';
 
 interface FormData {
   name: string;
@@ -30,9 +31,6 @@ const documentTypes = [
   { value: 'CNPJ', label: 'CNPJ' },
 ];
 
-const API_BASE_URL = import.meta.env.VITE_API_URL;
-const TOKEN_KEY = 'ergus_token';
-
 export function ClientForm() {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -49,13 +47,10 @@ export function ClientForm() {
       setIsLoading(true);
 
       try {
-        const token = localStorage.getItem(TOKEN_KEY);
+        const token = getTokenKey();
 
-        const resp = await fetch(`${API_BASE_URL}/tenants/${id}`, {
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
+        const resp = await fetch(`${getBaseUrl()}/tenants/${id}`, {
+          headers: getAuthHeaders(),
         });
 
         if (!resp.ok) {
@@ -130,7 +125,7 @@ export function ClientForm() {
 
     setIsSaving(true);
     try {
-      const token = localStorage.getItem(TOKEN_KEY);
+      const token = getTokenKey();
 
       const payload = {
         name: formData.name.trim(),
@@ -140,17 +135,14 @@ export function ClientForm() {
       };
 
       const url = isEdit && id
-        ? `${API_BASE_URL}/tenants/${id}`
-        : `${API_BASE_URL}/tenants`;
+        ? `${getBaseUrl()}/tenants/${id}`
+        : `${getBaseUrl()}/tenants`;
 
       const method = isEdit ? 'PUT' : 'POST';
 
       const resp = await fetch(url, {
         method,
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify(payload),
       });
 

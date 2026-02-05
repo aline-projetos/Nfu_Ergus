@@ -21,6 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { getAuthHeaders, getBaseUrl, getTokenKey } from '@/lib/utils';
 
 
 interface FormData {
@@ -46,31 +47,8 @@ const initialFormData: FormData = {
   ativo: true,
 };
 
-const API_BASE_URL = import.meta.env.VITE_API_URL;
-const TOKEN_KEY = 'ergus_token';
-
-export function UserForm() {
-  const navigate = useNavigate();
-  const { id } = useParams();
-  const isEdit = !!id;
-
-  const [formData, setFormData] = useState<FormData>(initialFormData);
-  const [tenants, setTenants] = useState<TenantOption[]>([]);
-  const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
-  const [isSaving, setIsSaving] = useState(false);
-  const [isLoading, setIsLoading] = useState(isEdit);
-  const [generatedPassword, setGeneratedPassword] = useState<string | null>(null);
-  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
-  
-  const loggedUser = JSON.parse(localStorage.getItem('ergus_user') || '{}');
-
-  const tenantId: string | undefined = loggedUser?.tenantId;
-  const hideTenantField = !isEdit && !!tenantId;
-  const isSuperAdmin: boolean = !!(loggedUser?.isSuperAdmin ?? loggedUser?.is_super_admin);
-
-  // helper para montar headers considerando superusuário x usuário comum
   const buildHeaders = (options?: { targetTenantId?: string }) => {
-    const token = localStorage.getItem(TOKEN_KEY);
+    const token = getTokenKey();
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -91,6 +69,25 @@ export function UserForm() {
     return headers;
   };
 
+export function UserForm() {
+  const navigate = useNavigate();
+  const { id } = useParams();
+  const isEdit = !!id;
+
+  const [formData, setFormData] = useState<FormData>(initialFormData);
+  const [tenants, setTenants] = useState<TenantOption[]>([]);
+  const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(isEdit);
+  const [generatedPassword, setGeneratedPassword] = useState<string | null>(null);
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  
+  const loggedUser = JSON.parse(localStorage.getItem('ergus_user') || '{}');
+
+  const tenantId: string | undefined = loggedUser?.tenantId;
+  const hideTenantField = !isEdit && !!tenantId;
+  const isSuperAdmin: boolean = !!(loggedUser?.isSuperAdmin ?? loggedUser?.is_super_admin);
+
   useEffect(() => {
     if (!isEdit && tenantId) {
       setFormData(prev => ({
@@ -104,8 +101,8 @@ export function UserForm() {
   useEffect(() => {
     const fetchTenants = async () => {
       try {
-        const resp = await fetch(`${API_BASE_URL}/tenants`, {
-          headers: buildHeaders(),
+        const resp = await fetch(`${getBaseUrl()}/tenants`, {
+          headers: getAuthHeaders(),
         });
 
         if (!resp.ok) {
@@ -132,9 +129,8 @@ export function UserForm() {
       setIsLoading(true);
 
       try {
-        const token = localStorage.getItem(TOKEN_KEY);
-        const resp = await fetch(`${API_BASE_URL}/users/${id}`, {
-          headers: buildHeaders(),
+        const resp = await fetch(`${getBaseUrl()}/users/${id}`, {
+          headers: getAuthHeaders(),
         });
 
         if (!resp.ok) {
@@ -231,8 +227,8 @@ export function UserForm() {
       };
 
       const url = isEdit && id
-        ? `${API_BASE_URL}/users/${id}`
-        : `${API_BASE_URL}/users`;
+        ? `${getBaseUrl()}/users/${id}`
+        : `${getBaseUrl()}/users`;
 
       const method = isEdit ? 'PUT' : 'POST';
 

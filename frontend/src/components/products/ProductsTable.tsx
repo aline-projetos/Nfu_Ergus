@@ -45,9 +45,14 @@ export function ProductsTable() {
       setIsLoading(true);
       const data = await listProducts();
       setProducts(data);
-    } catch (error) {
-      console.error('Erro ao carregar produtos:', error);
-      toast.error('Não foi possível carregar os produtos.');
+    } catch (err) {
+      console.error('Erro ao carregar produtos:', err);
+      const message =
+          err instanceof Error
+            ? err.message
+            : 'Erro inesperado ao carregar produtos';
+
+        toast.error(`Não foi possível carregar as promoções: ${message}`);
     } finally {
       setIsLoading(false);
     }
@@ -111,7 +116,13 @@ export function ProductsTable() {
       toast.success('Produto excluído com sucesso.');
     } catch (error) {
       console.error('Erro ao excluir produto:', error);
-      toast.error('Não foi possível excluir o produto.');
+      const message =
+          error instanceof Error
+            ? error.message
+            : 'Erro inesperado ao carregar promoções';
+
+        toast.error(`Não foi possível excluir o produto: ${message}`);
+
     }
   };
 
@@ -132,7 +143,13 @@ export function ProductsTable() {
       toast.success('Produto duplicado com sucesso.');
     } catch (error) {
       console.error('Erro ao duplicar produto:', error);
-      toast.error('Não foi possível duplicar o produto.');
+
+      const message =
+          error instanceof Error
+            ? error.message
+            : 'Erro inesperado ao carregar produtos';
+
+        toast.error(`Não foi possível duplicar o produto: ${message}`);
     }
   };
 

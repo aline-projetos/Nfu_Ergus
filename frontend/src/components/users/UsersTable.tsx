@@ -34,13 +34,14 @@ import {
 } from "@/components/ui/alert-dialog";
 import { userTypes } from '@/data/mockUsers';
 import { toast } from 'sonner';
+import { getBaseUrl, getTokenKey } from '@/lib/utils';
 
 type SortField = 'codigo' | 'username' | 'type';
 type SortDirection = 'asc' | 'desc';
 type FilterStatus = 'all' | 'active' | 'inactive';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
-const TOKEN_KEY = 'ergus_token';
+
 
 interface UserRow {
   id: string;
@@ -83,7 +84,7 @@ export function UsersTable() {
 
   // helper para montar headers considerando superusuário x usuário comum
   const buildHeaders = (options?: { targetTenantId?: string }) => {
-    const token = localStorage.getItem(TOKEN_KEY);
+    const token = getTokenKey();
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -108,7 +109,7 @@ export function UsersTable() {
     try {
       const targetUser = users.find(u => u.id === userId);
 
-      const resp = await fetch(`${API_BASE_URL}/users/${userId}/reset-password`, {
+      const resp = await fetch(`${getBaseUrl()}/users/${userId}/reset-password`, {
         method: 'POST',
         headers: buildHeaders({ targetTenantId: targetUser?.tenantId }),
       });
@@ -132,7 +133,7 @@ export function UsersTable() {
     useEffect(() => {
       const fetchTenants = async () => {
         try {
-          const resp = await fetch(`${API_BASE_URL}/tenants`, {
+          const resp = await fetch(`${getBaseUrl()}/tenants`, {
             headers: buildHeaders(),
           });
   
@@ -156,7 +157,7 @@ export function UsersTable() {
     const fetchUsers = async () => {
       setIsLoading(true);
       try {
-        const resp = await fetch(`${API_BASE_URL}/users`, {
+        const resp = await fetch(`${getBaseUrl()}/users`, {
           headers: buildHeaders(),
         });
 
@@ -276,7 +277,7 @@ export function UsersTable() {
     );
 
     try {
-      const token = localStorage.getItem(TOKEN_KEY);
+      const token = getTokenKey();
 
       const payload = {
         tenantId: user.tenantId,
@@ -287,7 +288,7 @@ export function UsersTable() {
         useremail: user.useremail,
       };
 
-      const resp = await fetch(`${API_BASE_URL}/users/${id}`, {
+      const resp = await fetch(`${getBaseUrl()}/users/${id}`, {
       method: 'PUT',
       headers: buildHeaders({ targetTenantId: user.tenantId }),
       body: JSON.stringify(payload),
@@ -314,11 +315,11 @@ export function UsersTable() {
     if (!deleteId) return;
 
     try {
-      const token = localStorage.getItem(TOKEN_KEY);
+      const token = getTokenKey();
 
       const targetUser = users.find(u => u.id === deleteId);
 
-      const resp = await fetch(`${API_BASE_URL}/users/${deleteId}`, {
+      const resp = await fetch(`${getBaseUrl()}/users/${deleteId}`, {
         method: 'DELETE',
         headers: buildHeaders({ targetTenantId: targetUser?.tenantId }),
       });

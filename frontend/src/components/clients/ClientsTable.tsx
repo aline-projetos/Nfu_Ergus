@@ -30,12 +30,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from 'sonner';
+import { getAuthHeaders, getBaseUrl, getTokenKey } from '@/lib/utils';
 
 type SortField = 'name' | 'document' | 'document_type';
 type SortDirection = 'asc' | 'desc';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL;
-const TOKEN_KEY = 'ergus_token';
+
+
 
 interface ClientRow {
   id: string;
@@ -64,13 +65,10 @@ export function ClientsTable() {
     const fetchClients = async () => {
       setIsLoading(true);
       try {
-        const token = localStorage.getItem(TOKEN_KEY);
+        const token = getTokenKey();
 
-        const resp = await fetch(`${API_BASE_URL}/tenants`, {
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
+        const resp = await fetch(`${getBaseUrl()}/tenants`, {
+          headers: getAuthHeaders(),
         });
 
         if (!resp.ok) {
@@ -168,7 +166,7 @@ export function ClientsTable() {
     );
 
     try {
-      const token = localStorage.getItem(TOKEN_KEY);
+      const token = getTokenKey();
 
       const payload = {
         name: client.name,
@@ -177,12 +175,9 @@ export function ClientsTable() {
         ativo: checked,
       };
 
-      const resp = await fetch(`${API_BASE_URL}/tenants/${id}`, {
+      const resp = await fetch(`${getBaseUrl()}/tenants/${id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify(payload),
       });
 
@@ -212,14 +207,11 @@ export function ClientsTable() {
     if (!deleteId) return;
 
     try {
-      const token = localStorage.getItem(TOKEN_KEY);
+      const token = getTokenKey();
 
-      const resp = await fetch(`${API_BASE_URL}/tenants/${deleteId}`, {
+      const resp = await fetch(`${getBaseUrl()}/tenants/${deleteId}`, {
         method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        headers: getAuthHeaders(),
       });
 
       if (!resp.ok) {

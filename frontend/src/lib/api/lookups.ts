@@ -1,6 +1,8 @@
+import { getAuthHeaders, getBaseUrl } from "../utils";
+
 // src/lib/api/lookups.ts
-const API_BASE_URL = import.meta.env.VITE_API_URL;
-const TOKEN_KEY = 'ergus_token';
+
+
 
 export interface Category {
   id: string;
@@ -26,26 +28,8 @@ export interface Product {
     nome: string;
 }
 
-function getAuthHeaders() {
-  const token = localStorage.getItem(TOKEN_KEY);
-  const tenantId = JSON.parse(localStorage.getItem('ergus_user') || '{}').tenantId;
-
-  if (!token) {
-    throw new Error('Usuário não autenticado');
-  }
-  if (!tenantId) {
-    throw new Error('Tenant não definido');
-  }
-
-  return {
-    Authorization: `Bearer ${token}`,
-    'Content-Type': 'application/json',
-    'X-Tenant-ID': tenantId,
-  } as HeadersInit;
-}
-
 async function apiGet<T>(path: string, params?: Record<string, string | number | undefined>): Promise<T> {
-  const url = new URL(`${API_BASE_URL}${path}`);
+  const url = new URL(`${getBaseUrl()}${path}`);
 
   if (params) {
     Object.entries(params).forEach(([key, value]) => {
@@ -94,7 +78,7 @@ export async function searchSuppliers(q: string, page = 1, pageSize = 20): Promi
   });
 }
 
-export async function searchProducts(q: string, page = 1, pageSize = 20): Promise<Supplier[]> {
+export async function searchProducts(q: string, page = 1, pageSize = 20): Promise<Product[]> {
     return apiGet<Product[]>("/products", {
         q,
         page,

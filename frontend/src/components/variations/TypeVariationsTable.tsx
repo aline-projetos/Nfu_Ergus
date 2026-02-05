@@ -30,12 +30,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from 'sonner';
+import { getAuthHeaders, getBaseUrl, getTokenKey } from '@/lib/utils';
 
 type SortField = 'name' | 'document' | 'document_type';
 type SortDirection = 'asc' | 'desc';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL;
-const TOKEN_KEY = 'ergus_token';
+
+
 
 interface TypeVariationRow {
   id: string;
@@ -64,7 +65,7 @@ export function TypeVariationsTable() {
   const isSuperAdmin: boolean = !!(loggedUser?.isSuperAdmin ?? loggedUser?.is_super_admin);
 
   const buildHeaders = (options?: { targetTenantId?: string }) => {
-    const token = localStorage.getItem(TOKEN_KEY);
+    const token = getTokenKey();
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -89,7 +90,7 @@ export function TypeVariationsTable() {
   useEffect(() => {
         const fetchTenants = async () => {
           try {
-            const resp = await fetch(`${API_BASE_URL}/tenants`, {
+            const resp = await fetch(`${getBaseUrl()}/tenants`, {
               headers: buildHeaders(),
             });
     
@@ -168,18 +169,15 @@ export function TypeVariationsTable() {
     );
 
     try {
-      const token = localStorage.getItem(TOKEN_KEY);
+      const token = getTokenKey();
 
       const payload = {
         name: variations.name,
       };
 
-      const resp = await fetch(`${API_BASE_URL}/type-variations/${id}`, {
+      const resp = await fetch(`${getBaseUrl()}/type-variations/${id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify(payload),
       });
 
@@ -209,14 +207,11 @@ export function TypeVariationsTable() {
     if (!deleteId) return;
 
     try {
-      const token = localStorage.getItem(TOKEN_KEY);
+      const token = getTokenKey();
 
-      const resp = await fetch(`${API_BASE_URL}/type-variations/${deleteId}`, {
+      const resp = await fetch(`${getBaseUrl()}/type-variations/${deleteId}`, {
         method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        headers: getAuthHeaders(),
       });
 
       if (!resp.ok) {

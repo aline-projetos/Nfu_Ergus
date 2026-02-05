@@ -322,7 +322,13 @@ export function ProductWizard() {
         setFormData(mapProductToFormData(product));
       } catch (error) {
         console.error('Erro ao carregar produto:', error);
-        toast.error('Não foi possível carregar os dados do produto.');
+
+        const message =
+          error instanceof Error
+            ? error.message
+            : 'Erro inesperado ao carregar dados';
+
+        toast.error(`Não foi possível carregar dados: ${message}`);
       } finally {
         setIsLoadingProduct(false);
       }
@@ -384,7 +390,12 @@ export function ProductWizard() {
       navigate('/catalogo/produtos');
     } catch (error) {
       console.error('Erro ao salvar produto:', error);
-      toast.error('Não foi possível salvar o produto.');
+      const message =
+          error instanceof Error
+            ? error.message
+            : 'Erro inesperado ao carregar dados';
+
+        toast.error(`Não foi possível carregar dados: ${message}`);
     } finally {
       setIsSaving(false);
     }
@@ -481,7 +492,12 @@ export function ProductWizard() {
       setIsCategoryModalOpen(true);
     } catch (err) {
       console.error('Erro ao buscar categorias', err);
-      toast.error('Erro ao buscar categorias');
+      const message =
+          err instanceof Error
+            ? err.message
+            : 'Erro inesperado ao carregar categorias';
+
+      toast.error(`Erro ao buscar categorias: ${message}`);
     }
   };
 
@@ -530,8 +546,22 @@ export function ProductWizard() {
       setIsManufacturerModalOpen(true);
     } catch (err) {
       console.error('Erro ao buscar fabricantes', err);
-      toast.error('Erro ao buscar fabricantes');
+      const message =
+          err instanceof Error
+            ? err.message
+            : 'Erro inesperado ao carregarfabricantes';
+
+      toast.error(`Erro ao buscar fabricantes: ${message}`);
     }
+  };
+
+  const handleSelectManufacturer = (mf: Manufacturer) => {
+    setFormData(prev => ({
+      ...prev,
+      manufacturerId: mf.id,
+      manufacturerName: mf.nome,
+    }));
+    setIsManufacturerModalOpen(false);
   };
 
   // FORNECEDOR
@@ -569,17 +599,14 @@ export function ProductWizard() {
       setIsSupplierModalOpen(true);
     } catch (err) {
       console.error('Erro ao buscar fornecedores', err);
-      toast.error('Erro ao buscar fornecedores');
-    }
-  };
 
-  const handleSelectManufacturer = (mf: Manufacturer) => {
-    setFormData(prev => ({
-      ...prev,
-      manufacturerId: mf.id,
-      manufacturerName: mf.nome,
-    }));
-    setIsManufacturerModalOpen(false);
+      const message =
+          err instanceof Error
+            ? err.message
+            : 'Erro inesperado ao carregar fornecedores';
+
+      toast.error(`Erro ao buscar fornecedores: ${message}`);
+    }
   };
 
   const handleSelectSupplier = (sp: Supplier) => {

@@ -1,6 +1,8 @@
+import { getAuthHeaders, getBaseUrl } from "../utils";
+
 // src/lib/api/suppliers.ts
-const API_BASE_URL = import.meta.env.VITE_API_URL;
-const TOKEN_KEY = 'ergus_token';
+
+
 
 export interface Promotion {
   id: string;
@@ -41,30 +43,12 @@ export interface PromotionCreateInput {
 
 export type PromotionUpdateInput = PromotionCreateInput
 
-function getAuthHeaders() {
-  const token = localStorage.getItem(TOKEN_KEY);
-  const tenantId = JSON.parse(localStorage.getItem('ergus_user') || '{}').tenantId;
-
-  if (!token) {
-    throw new Error('Usuário não autenticado');
-  }
-  if (!tenantId) {
-    throw new Error('Tenant não definido');
-  }
-
-  return {
-    Authorization: `Bearer ${token}`,
-    'Content-Type': 'application/json',
-    'X-Tenant-ID': tenantId,
-  } as HeadersInit;
-}
-
 // -----------------------------------------------------------------------------
 // GET /suppliers
 // -----------------------------------------------------------------------------
 
 export async function listPromotions(): Promise<Promotion[]> {
-  const res = await fetch(`${API_BASE_URL}/promotions`, {
+  const res = await fetch(`${getBaseUrl()}/promotions`, {
     method: 'GET',
     headers: getAuthHeaders(),
   });
@@ -82,7 +66,7 @@ export async function listPromotions(): Promise<Promotion[]> {
 // -----------------------------------------------------------------------------
 
 export async function getPromotionById(id: string): Promise<Promotion> {
-  const res = await fetch(`${API_BASE_URL}/promotions/${id}`, {
+  const res = await fetch(`${getBaseUrl()}/promotions/${id}`, {
     method: 'GET',
     headers: getAuthHeaders(),
   });
@@ -102,7 +86,7 @@ export async function getPromotionById(id: string): Promise<Promotion> {
 export async function createPromotion(
   input: PromotionCreateInput
 ): Promise<Promotion> {
-  const res = await fetch(`${API_BASE_URL}/promotions`, {
+  const res = await fetch(`${getBaseUrl()}/promotions`, {
     method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify(input),
@@ -124,7 +108,7 @@ export async function updatePromotion(
   id: string,
   input: PromotionUpdateInput
 ): Promise<Promotion> {
-  const res = await fetch(`${API_BASE_URL}/promotions/${id}`, {
+  const res = await fetch(`${getBaseUrl()}/promotions/${id}`, {
     method: 'PUT',
     headers: getAuthHeaders(),
     body: JSON.stringify(input),
@@ -143,7 +127,7 @@ export async function updatePromotion(
 // -----------------------------------------------------------------------------
 
 export async function deletePromotion(id: string): Promise<void> {
-  const res = await fetch(`${API_BASE_URL}/promotions/${id}`, {
+  const res = await fetch(`${getBaseUrl()}/promotions/${id}`, {
     method: 'DELETE',
     headers: getAuthHeaders(),
   });

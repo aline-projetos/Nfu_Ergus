@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Tag, Check, X, CheckCircle2, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { mockSearchItems, AssociatedItem, promotionTypes } from '@/data/mockPromotions';
+import { AssociatedItem, promotionTypes } from '@/data/mockPromotions';
 import { Switch } from '@/components/ui/switch';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -61,35 +61,41 @@ const steps = [
 ];
 
 const SearchInput = ({
-    value,
-    onChange,
-    placeholder,
-    error,
-    onSearch,
-  }: {
-    value: string;
-    onChange: (v: string) => void;
-    placeholder: string;
-    error?: boolean;
-    onSearch?: (term: string) => void;
-  }) => (
-    <div className="relative">
-      <input
-        type="text"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className={`input-field pr-10 ${error ? 'error' : ''}`}
-      />
-      <button
-        type="button"
-        onClick={() => onSearch?.(value)}
-        className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded hover:bg-muted transition-colors"
-      >
-        <Search className="w-4 h-4 text-muted-foreground" />
-      </button>
-    </div>
-  );
+  value,
+  onChange,
+  placeholder,
+  error,
+  onSearch,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+  error?: boolean;
+  onSearch?: (term: string) => void;
+}) => (
+  <div className="relative">
+    <input
+      type="text"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      className={`input-field pr-10 ${error ? 'error' : ''}`}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          onSearch?.(e.currentTarget.value);
+        }
+      }}
+    />
+    <button
+      type="button"
+      onClick={() => onSearch?.(value)}
+      className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded hover:bg-muted transition-colors"
+    >
+      <Search className="w-4 h-4 text-muted-foreground" />
+    </button>
+  </div>
+);
+
 
 export function PromotionWizard() {
   const navigate = useNavigate();
@@ -105,11 +111,30 @@ export function PromotionWizard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedItems, setSelectedItems] = useState<AssociatedItem[]>([]);
 
-  const [productResults, setProductResults] = useState<Product[]>([]);;
+  const [productResults, setProductResults] = useState<Product[]>([]);
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [productFilter, setProductFilter] = useState('');
 
-  const filteredItems = [];
+  const [productSearchTerm, setProductSearchTerm] = useState('');
+
+
+const filteredItems: AssociatedItem[] = useMemo(() => {
+  const baseItems: AssociatedItem[] = productResults.map((p) => ({
+    id: p.id,
+    type: 'product',
+    code: p.codigo ?? p.code ?? '',
+    name: p.nome ?? p.name ?? '',
+  }));
+
+  const term = productSearchTerm.trim().toLowerCase();
+  if (!term) return baseItems;
+
+  return baseItems.filter((item) =>
+    item.code.toLowerCase().includes(term) ||
+    item.name.toLowerCase().includes(term)
+  );
+}, [productResults, productSearchTerm]);
+
 
   useEffect(() => {
   if (!isEditing || !id) return;
@@ -285,6 +310,95 @@ export function PromotionWizard() {
     }
   };
 
+const handleSearchProduct = async (termParam?: string) => {
+  try {
+    const term = (termParam ?? productSearchTerm).trim();
+
+    // 1) Exigir pelo menos 3 caracteres
+    if (term.length < 3) {
+      toast.error('Digite pelo menos 3 caracteres para buscar produtos');
+      setProductResults([]); // limpa a tabela
+      return;
+    }
+
+    const results = await searchProducts(term, 1, 50);
+
+    // 2) Se não achou nada → tabela vazia
+    if (!results.length) {
+      toast.error('Nenhum produto encontrado');
+      setProductResults([]);
+      return;
+    }
+
+    // 3) Sempre só popular a tabela, NUNCA mexer em selectedItems aqui
+    setProductResults(results);
+
+    toast.success(
+      results.length === 1
+        ? '1 produto encontrado. Selecione na lista abaixo.'
+        : `${results.length} produtos encontrados. Selecione na lista abaixo.`
+    );
+  } catch (err) {
+    console.error('Erro ao buscar produtos', err);
+    const message =
+      err instanceof Error
+        ? err.message
+        : 'Erro inesperado ao carregar produtos';
+
+    toast.error(`Erro ao buscar produtos: ${message}`);
+  }
+};
+
+
+
+
+//   const handleSearchProducts = async (searchTerm?: string) => {
+//   try {
+//     const term = (searchTerm ?? searchQuery).trim();
+
+//     if (!term) {
+//       toast.error('Informe código ou nome do produto para buscar');
+//       return;
+//     }
+
+//     const results = await searchProducts(term, 1, 50);
+
+//     if (!results.length) {
+//       toast.error('Nenhum produto encontrado');
+//       setProductResults([]);
+//       return;
+//     }
+
+//     setProductResults(results);
+//   } catch (err) {
+//     console.error('Erro ao buscar produtos', err);
+
+//     const message =
+//       err instanceof Error
+//         ? err.message
+//         : 'Erro inesperado ao carregar produtos';
+
+//     toast.error(`Erro ao buscar produtos: ${message}`);
+//   }
+// };
+
+  const handleSelectProduct = (sp: Product) => {
+    const item: AssociatedItem = {
+      id: sp.id,
+      type: 'product',
+      code: sp.codigo ?? '',
+      name: sp.nome ?? '',
+    };
+
+    setSelectedItems(prev =>
+      prev.some(i => i.id === item.id) ? prev : [...prev, item]
+    );
+
+    setIsProductModalOpen(false);
+  };
+
+
+
   return (
     <div className="animate-fade-in max-w-5xl mx-auto">
       <div className="card-dashboard">
@@ -354,10 +468,13 @@ export function PromotionWizard() {
                     </label>
                     <input
                       type="text"
-                      value={formData.code}
-                      onChange={(e) => updateField('code', e.target.value)}
-                      placeholder="Ex: PROMO001"
-                      className={`input-field ${errors.code ? 'error' : ''}`}
+                      value={
+                        isEditing
+                          ? formData.code || ''
+                          : 'Gerado automaticamente'
+                      }
+                      disabled
+                      className="input-field opacity-70 cursor-not-allowed"
                     />
                   </div>
                   
@@ -515,15 +632,13 @@ export function PromotionWizard() {
                 <div className="border-t border-border pt-6 mt-6">
                   <h3 className="text-md font-medium text-foreground mb-4">Associar Produtos ou Categorias</h3>
                   
-                  <div className="relative mb-4">
-                    <input
-                      type="text"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Procurar produtos ou categorias"
-                      className="input-field pl-10"
+                  <div className="mb-4">
+                    <SearchInput
+                      value={productSearchTerm}
+                      onChange={setProductSearchTerm}
+                      placeholder="Procurar produtos por código ou nome"
+                      onSearch={handleSearchProduct}
                     />
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   </div>
 
                   <div className="border border-border rounded-lg overflow-hidden max-h-64 overflow-y-auto">
@@ -540,12 +655,11 @@ export function PromotionWizard() {
                         {filteredItems.map((item) => {
                           const isSelected = selectedItems.some(i => i.id === item.id);
                           return (
-                            <tr 
-                              key={item.id} 
-                              className={`border-t border-border cursor-pointer transition-colors ${
+                            <tr
+                              key={item.id}
+                              className={`border-t border-border transition-colors ${
                                 isSelected ? 'bg-primary/5' : 'hover:bg-muted/30'
                               }`}
-                              onClick={() => toggleItemSelection(item)}
                             >
                               <td className="px-4 py-3">
                                 <input
@@ -556,11 +670,13 @@ export function PromotionWizard() {
                                 />
                               </td>
                               <td className="px-4 py-3">
-                                <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
-                                  item.type === 'product' 
-                                    ? 'bg-blue-100 text-blue-700' 
-                                    : 'bg-green-100 text-green-700'
-                                }`}>
+                                <span
+                                  className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
+                                    item.type === 'product'
+                                      ? 'bg-blue-100 text-blue-700'
+                                      : 'bg-green-100 text-green-700'
+                                  }`}
+                                >
                                   {item.type === 'product' ? 'Produto' : 'Categoria'}
                                 </span>
                               </td>
@@ -633,6 +749,53 @@ export function PromotionWizard() {
           </button>
         </div>
       </div>
+
+      <Dialog open={isProductModalOpen} onOpenChange={setIsProductModalOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Selecionar Produto</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <input
+              type="text"
+              placeholder="Filtrar por código ou nome"
+              value={productFilter}
+              onChange={(e) => setProductFilter(e.target.value)}
+              className="input-field"
+            />
+
+            <div className="max-h-64 overflow-y-auto border border-border rounded-md">
+              {productResults
+                .filter(sp => {
+                  if (!productFilter.trim()) return true;
+                  const term = productFilter.toLowerCase();
+                  return (
+                    sp.codigo.toLowerCase().includes(term) ||
+                    sp.nome.toLowerCase().includes(term)
+                  );
+                })
+                .map(sp => (
+                  <button
+                    key={sp.id}
+                    type="button"
+                    onClick={() => handleSelectProduct(sp)}
+                    className="w-full flex justify-between items-center px-3 py-2 text-left hover:bg-muted/70 border-b last:border-b-0 border-border"
+                  >
+                    <span className="text-sm font-medium">
+                      {sp.codigo} - {sp.nome}
+                    </span>
+                  </button>
+                ))}
+              {productResults.length === 0 && (
+                <div className="px-3 py-4 text-sm text-muted-foreground">
+                  Nenhum fproduto encontrado.
+                </div>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

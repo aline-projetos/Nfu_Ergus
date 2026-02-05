@@ -1,3 +1,4 @@
+import { getBaseUrl, getTokenKey } from '@/lib/utils';
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 interface User {
@@ -21,14 +22,13 @@ const TOKEN_KEY = 'ergus_token';
 const USER_KEY = 'ergus_user';
 
 // idealmente isso vem de env (VITE_API_URL)
-const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem(TOKEN_KEY);
+    const token = getTokenKey();
     const storedUser = localStorage.getItem(USER_KEY);
 
     if (token && storedUser) {
@@ -48,7 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     password: string
   ): Promise<{ success: boolean; error?: string }> => {
     try {
-      const resp = await fetch(`${API_BASE_URL}/auth/login`, {
+      const resp = await fetch(`${getBaseUrl()}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -78,7 +78,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { success: true };
     } catch (err) {
       console.error('Erro ao chamar backend de login:', err);
-      return { success: false, error: 'Falha de comunicação com o servidor' };
+
+      const message =
+          err instanceof Error
+            ? err.message
+            : 'Erro inesperado ao comunicar com servidor';
+      return { success: false, error: `Falha de comunicação com o servidor: ${message}` };
     }
   };
 
@@ -103,6 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {

@@ -1,6 +1,8 @@
+import { getAuthHeaders, getBaseUrl } from "../utils";
+
 // src/lib/api/suppliers.ts
-const API_BASE_URL = import.meta.env.VITE_API_URL;
-const TOKEN_KEY = 'ergus_token';
+
+
 
 export interface Supplier {
   id: string;
@@ -126,30 +128,12 @@ export interface SupplierUpdateInput {
   ativo?: boolean | null;
 }
 
-function getAuthHeaders() {
-  const token = localStorage.getItem(TOKEN_KEY);
-  const tenantId = JSON.parse(localStorage.getItem('ergus_user') || '{}').tenantId;
-
-  if (!token) {
-    throw new Error('Usuário não autenticado');
-  }
-  if (!tenantId) {
-    throw new Error('Tenant não definido');
-  }
-
-  return {
-    Authorization: `Bearer ${token}`,
-    'Content-Type': 'application/json',
-    'X-Tenant-ID': tenantId,
-  } as HeadersInit;
-}
-
 // -----------------------------------------------------------------------------
 // GET /suppliers
 // -----------------------------------------------------------------------------
 
 export async function listSuppliers(): Promise<Supplier[]> {
-  const res = await fetch(`${API_BASE_URL}/suppliers`, {
+  const res = await fetch(`${getBaseUrl()}/suppliers`, {
     method: 'GET',
     headers: getAuthHeaders(),
   });
@@ -167,7 +151,7 @@ export async function listSuppliers(): Promise<Supplier[]> {
 // -----------------------------------------------------------------------------
 
 export async function getSupplierById(id: string): Promise<Supplier> {
-  const res = await fetch(`${API_BASE_URL}/suppliers/${id}`, {
+  const res = await fetch(`${getBaseUrl()}/suppliers/${id}`, {
     method: 'GET',
     headers: getAuthHeaders(),
   });
@@ -187,7 +171,7 @@ export async function getSupplierById(id: string): Promise<Supplier> {
 export async function createSupplier(
   input: SupplierCreateInput
 ): Promise<Supplier> {
-  const res = await fetch(`${API_BASE_URL}/suppliers`, {
+  const res = await fetch(`${getBaseUrl()}/suppliers`, {
     method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify(input),
@@ -209,7 +193,7 @@ export async function updateSupplier(
   id: string,
   input: SupplierUpdateInput
 ): Promise<Supplier> {
-  const res = await fetch(`${API_BASE_URL}/suppliers/${id}`, {
+  const res = await fetch(`${getBaseUrl()}/suppliers/${id}`, {
     method: 'PUT',
     headers: getAuthHeaders(),
     body: JSON.stringify(input),
@@ -228,7 +212,7 @@ export async function updateSupplier(
 // -----------------------------------------------------------------------------
 
 export async function deleteSupplier(id: string): Promise<void> {
-  const res = await fetch(`${API_BASE_URL}/suppliers/${id}`, {
+  const res = await fetch(`${getBaseUrl()}/suppliers/${id}`, {
     method: 'DELETE',
     headers: getAuthHeaders(),
   });
