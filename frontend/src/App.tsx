@@ -17,6 +17,7 @@ import EditProduct from "./pages/products/EditProduct";
 
 import Promotions from "./pages/promotions/Promotions";
 import NewPromotion from "./pages/promotions/NewPromotion";
+import EditPromotion from "./pages/promotions/EditPromotion"
 
 import Clients from "./pages/clients/Clients";
 import NewClient from "./pages/clients/NewClient";
@@ -34,9 +35,9 @@ import Manufacturers from "./pages/manufacturer/Manufacturers";
 import NewManufacturer from "./pages/manufacturer/NewManufacturer";
 import EditManufacturer from "./pages/manufacturer/EditManufacturer";
 
-import TypeVariations from "./pages/variations/TypeVariations";
 import PlaceholderPage from "./pages/PlaceholderPage";
 import NotFound from "./pages/NotFound";
+import { PromotionWizard } from "./components/promotions/PromotionWizard";
 
 const App = () => {
   return (
@@ -56,42 +57,6 @@ const App = () => {
             element={<CategoryWizard />}
           />
 
-          <Route path="/catalogo/variacoes/tipos" element={<TypeVariations />} />
-          <Route
-            path="/catalogo/variacoes/tipos/novo"
-            element={<PlaceholderPage />}
-          />
-          <Route
-            path="/catalogo/variacoes/tipos/:id/editar"
-            element={<PlaceholderPage />}
-          />
-
-          <Route
-            path="/catalogo/variacoes/gradex"
-            element={<PlaceholderPage />}
-          />
-          <Route
-            path="/catalogo/variacoes/gradex/novo"
-            element={<PlaceholderPage />}
-          />
-          <Route
-            path="/catalogo/variacoes/gradex/:id/editar"
-            element={<PlaceholderPage />}
-          />
-
-          <Route
-            path="/catalogo/variacoes/gradey"
-            element={<PlaceholderPage />}
-          />
-          <Route
-            path="/catalogo/variacoes/gradey/novo"
-            element={<PlaceholderPage />}
-          />
-          <Route
-            path="/catalogo/variacoes/gradey/:id/editar"
-            element={<PlaceholderPage />}
-          />
-
           <Route path="/catalogo/produtos" element={<Products />} />
           <Route path="/catalogo/produtos/novo" element={<NewProduct />} />
           <Route
@@ -103,6 +68,10 @@ const App = () => {
           <Route
             path="/catalogo/promocoes/nova"
             element={<NewPromotion />}
+          />
+          <Route
+            path="/catalogo/promocoes/:id/editar"
+            element={<PromotionWizard />}
           />
 
           <Route path="/cadastros/admin/clientes" element={<Clients />} />

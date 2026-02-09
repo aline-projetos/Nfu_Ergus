@@ -83,6 +83,9 @@ func main() {
 	promotions := httpapi.NewPromotionHandler(pg)
 	promotions.RegisterRoutes(mux)
 
+	taxHandler := httpapi.NewTaxHandler(pg)
+	taxHandler.RegisterRoutes(mux)
+
 	handler := httpapi.LoggingMiddleware(withCORS(mux))
 
 	log.Println("🚀 API rodando em http://localhost:8080")

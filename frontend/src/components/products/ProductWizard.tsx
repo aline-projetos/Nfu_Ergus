@@ -460,13 +460,14 @@ export function ProductWizard() {
 
   const handleSearchCategory = async () => {
     try {
-      const term = formData.categoryCode || formData.categoryName;
-      if (!term.trim()) {
-        toast.error('Informe código ou nome da categoria para buscar');
+      const term = formData.categoryName.trim();
+
+      if (!term) {
+        toast.error('Informe o nome ou código da categoria para buscar');
         return;
       }
 
-      const results = await searchCategories(term.trim(), 1, 20);
+      const results = await searchCategories(term, 1, 20);
 
       if (results.length === 0) {
         toast.error('Nenhuma categoria encontrada');
@@ -480,8 +481,10 @@ export function ProductWizard() {
         setFormData(prev => ({
           ...prev,
           categoryId: cat.id,
+          // aqui você pode exibir código + nome no campo, igual faz no modal
+          categoryName: `${cat.code} - ${cat.name}`,
+          // se ainda quiser manter o code internamente:
           categoryCode: cat.code,
-          categoryName: cat.name,
         }));
         toast.success('Categoria selecionada');
         return;
@@ -493,9 +496,9 @@ export function ProductWizard() {
     } catch (err) {
       console.error('Erro ao buscar categorias', err);
       const message =
-          err instanceof Error
-            ? err.message
-            : 'Erro inesperado ao carregar categorias';
+        err instanceof Error
+          ? err.message
+          : 'Erro inesperado ao carregar categorias';
 
       toast.error(`Erro ao buscar categorias: ${message}`);
     }
@@ -724,19 +727,6 @@ export function ProductWizard() {
                 <div className="grid grid-cols-3 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-2">
-                      Estoque
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.stock}
-                      onChange={(e) => handleNumericInput('stock', e.target.value)}
-                      placeholder="0"
-                      className="input-field"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">
                       Referência
                     </label>
                     <input
@@ -744,93 +734,6 @@ export function ProductWizard() {
                       value={formData.reference}
                       onChange={(e) => updateField('reference', e.target.value)}
                       placeholder="Referência"
-                      className="input-field"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">
-                      Código Cat.
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.categoryCode}
-                      onChange={(e) => updateField('categoryCode', e.target.value)}
-                      placeholder="CAT001"
-                      className="input-field"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="col-span-2">
-                    <label className="block text-sm font-medium text-foreground mb-2">
-                      Nome Categoria
-                    </label>
-                    <SearchInput
-                      value={formData.categoryName}
-                      onChange={(v) => updateField('categoryName', v)}
-                      placeholder="Buscar categoria"
-                      onSearch={handleSearchCategory}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">
-                      Preço de Custo
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.costPrice}
-                      onChange={(e) => handleNumericInput('costPrice', e.target.value)}
-                      placeholder="0.00"
-                      className="input-field"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="col-span-3">
-                    <h3 className="text-sm font-medium text-muted-foreground mb-2">
-                      Relações do Produto
-                    </h3>
-                  </div>
-
-                  <div className="col-span-3 md:col-span-3">
-                    <label className="block text-sm font-medium text-foreground mb-2">
-                      Fornecedor
-                    </label>
-                    <SearchInput
-                      value={formData.supplierName}
-                      onChange={(v) => updateField('supplierName', v)}
-                      placeholder="Buscar fornecedor por nome ou código"
-                      onSearch={handleSearchSupplier}
-                    />
-                  </div>
-
-                  <div className="col-span-3 md:col-span-3">
-                    <label className="block text-sm font-medium text-foreground mb-2">
-                      Fabricante
-                    </label>
-                    <SearchInput
-                      value={formData.manufacturerName}
-                      onChange={(v) => updateField('manufacturerName', v)}
-                      placeholder="Buscar fabricante por nome ou código"
-                      onSearch={handleSearchManufacturer}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">
-                      Preço de Venda
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.salePrice}
-                      onChange={(e) => handleNumericInput('salePrice', e.target.value)}
-                      placeholder="0.00"
                       className="input-field"
                     />
                   </div>
@@ -858,6 +761,92 @@ export function ProductWizard() {
                       onChange={(e) => updateField('ean', e.target.value)}
                       placeholder="7891234567890"
                       className="input-field"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-2">
+                      Estoque
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.stock}
+                      onChange={(e) => handleNumericInput('stock', e.target.value)}
+                      placeholder="0"
+                      className="input-field"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-2">
+                      Preço de Custo
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.costPrice}
+                      onChange={(e) => handleNumericInput('costPrice', e.target.value)}
+                      placeholder="0.00"
+                      className="input-field"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-2">
+                      Preço de Venda
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.salePrice}
+                      onChange={(e) => handleNumericInput('salePrice', e.target.value)}
+                      placeholder="0.00"
+                      className="input-field"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="col-span-3">
+                    <h3 className="text-sm font-medium text-muted-foreground mb-2">
+                      Relações do Produto
+                    </h3>
+                  </div>
+
+                  <div className="col-span-3 md:col-span-3">
+                    <label className="block text-sm font-medium text-foreground mb-2">
+                      Nome Categoria
+                    </label>
+                    <SearchInput
+                      value={formData.categoryName}
+                      onChange={(v) => updateField('categoryName', v)}
+                      placeholder="Buscar categoria por nome ou codigo"
+                      onSearch={handleSearchCategory}
+                    />
+                  </div>
+
+                  <div className="col-span-3 md:col-span-3">
+                    <label className="block text-sm font-medium text-foreground mb-2">
+                      Fornecedor
+                    </label>
+                    <SearchInput
+                      value={formData.supplierName}
+                      onChange={(v) => updateField('supplierName', v)}
+                      placeholder="Buscar fornecedor por nome ou código"
+                      onSearch={handleSearchSupplier}
+                    />
+                  </div>
+
+                  <div className="col-span-3 md:col-span-3">
+                    <label className="block text-sm font-medium text-foreground mb-2">
+                      Fabricante
+                    </label>
+                    <SearchInput
+                      value={formData.manufacturerName}
+                      onChange={(v) => updateField('manufacturerName', v)}
+                      placeholder="Buscar fabricante por nome ou código"
+                      onSearch={handleSearchManufacturer}
                     />
                   </div>
                 </div>
@@ -912,19 +901,6 @@ export function ProductWizard() {
                       onChange={(e) => handleNumericInput('width', e.target.value)}
                       placeholder="0"
                       className="input-field"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="col-span-2">
-                    <label className="block text-sm font-medium text-foreground mb-2">
-                      NCM
-                    </label>
-                    <SearchInput
-                      value={formData.ncm}
-                      onChange={(v) => updateField('ncm', v)}
-                      placeholder="Buscar NCM"
                     />
                   </div>
                 </div>

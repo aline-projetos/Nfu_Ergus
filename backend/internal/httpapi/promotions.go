@@ -53,37 +53,44 @@ func NewPromotionHandler(db *sql.DB) *PromotionHandler {
 }
 
 func (h *PromotionHandler) GenerateNextPromotionCode(tenantID string) (string, error) {
+	const prefix = "PROMO"
+
 	var lastCode sql.NullString
 
 	err := h.DB.QueryRow(`
-		select code
-		  from promotions
-		 where tenant_id = $1
-		   and code like 'PROMO%'
-		 order by code desc
-		 limit 1
-	`, tenantID).Scan(&lastCode)
+        select code
+          from promotions
+         where tenant_id = $1
+           and code like 'PROMO%%'
+         order by code desc
+         limit 1
+    `, tenantID).Scan(&lastCode)
 
 	if err == sql.ErrNoRows || !lastCode.Valid {
-		return "PROMO001", nil
+		return prefix + "001", nil
 	}
 	if err != nil {
 		return "", fmt.Errorf("erro ao buscar último código: %w", err)
 	}
 
-	code := lastCode.String
-	if len(code) < 3 {
+	// 1) tira espaços e garante prefixo
+	code := strings.TrimSpace(lastCode.String)
+
+	if len(code) <= len(prefix) {
 		return "", fmt.Errorf("código inválido encontrado: %s", code)
 	}
 
-	numStr := code[3:]
+	// 2) PEGA SÓ A PARTE NUMÉRICA DEPOIS DE "PROMO"
+	numStr := code[len(prefix):] // ✅ AQUI É O PULO DO GATO
+
 	num, err := strconv.Atoi(numStr)
 	if err != nil {
 		return "", fmt.Errorf("código inválido encontrado: %s", code)
 	}
+
 	num++
 
-	return fmt.Sprintf("PROMO%03d", num), nil
+	return fmt.Sprintf(prefix+"%03d", num), nil
 }
 
 func (h *PromotionHandler) RegisterRoutes(mux *http.ServeMux) {
@@ -148,12 +155,27 @@ func (h *PromotionHandler) CreatePromotion(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	if strings.TrimSpace(promo.Type) == "" {
+		http.Error(w, "Tipo da promoção é obrigatório", http.StatusBadRequest)
+		return
+	}
+
+	tipo := ""
+	tipo_recebido := strings.TrimSpace(promo.Type)
+	switch tipo_recebido {
+	case "subtract":
+		tipo = "Subtrai Valor"
+	case "add":
+		tipo = "Adiciona Valor"
+	}
+
 	promo.ID = uuid.NewString()
 	promo.TenantID = tenantID
 
 	nextCode, err := h.GenerateNextPromotionCode(tenantID)
 	if err != nil {
-		http.Error(w, "Erro ao gerar código da promoção", http.StatusInternalServerError)
+		log.Printf("[CreatePromotion] erro ao gerar código da promoção: %v", err)
+		http.Error(w, "Erro ao gerar código da promoção: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 	promo.Code = nextCode
@@ -187,7 +209,7 @@ func (h *PromotionHandler) CreatePromotion(w http.ResponseWriter, r *http.Reques
 		promo.TenantID,
 		promo.Code,
 		promo.Name,
-		promo.Type,
+		tipo,
 		promo.StartDate, // string → Postgres converte para TIMESTAMPTZ
 		promo.EndDate,
 		"", // description (por enquanto vazio)

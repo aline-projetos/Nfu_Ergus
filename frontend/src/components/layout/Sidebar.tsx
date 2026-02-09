@@ -38,14 +38,14 @@ const menuItems: MenuItem[] = [
     icon: Package,
     children: [
       { label: 'Categorias', path: '/catalogo/categorias' },
-      { 
-        label: 'Variações',
-        children: [
-          { label: 'Tipos de Variações', path: '/catalogo/variacoes/tipos' },
-          { label: 'Grade X', path: '/catalogo/variacoes/gradex' },
-          { label: 'Grade Y', path: '/catalogo/variacoes/gradey' },
-        ],
-      },
+      // { 
+      //   label: 'Variações',
+      //   children: [
+      //     { label: 'Tipos de Variações', path: '/catalogo/variacoes/tipos' },
+      //     { label: 'Grade X', path: '/catalogo/variacoes/gradex' },
+      //     { label: 'Grade Y', path: '/catalogo/variacoes/gradey' },
+      //   ],
+      // },
       { label: 'Produtos', path: '/catalogo/produtos' },
       { label: 'Promoções', path: '/catalogo/promocoes' },
       { label: 'Fornecedores', path: '/catalogo/fornecedores' },

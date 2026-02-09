@@ -24,6 +24,10 @@ type Product struct {
 	CategoryID     *string `json:"category_id,omitempty"`
 	SupplierID     *string `json:"supplier_id,omitempty"`
 	ManufacturerID *string `json:"manufacturer_id,omitempty"`
+	TaxGroupID     *string `json:"tax_group_id,omitempty"` // FK tax_groups.id
+	NCMID          *string `json:"ncm_id,omitempty"`       // FK ncm_codes.id
+	CESTID         *string `json:"cest_id,omitempty"`      // FK cest_codes.id
+	FiscalOrigin   string  `json:"fiscal_origin"`          // enum fiscal_origin_type ('0'..'8')
 }
 
 // Entrada de criação/edição: por enquanto só nome
@@ -32,6 +36,10 @@ type ProductCreateInput struct {
 	CategoryID     *string `json:"category_id"`
 	SupplierID     *string `json:"supplier_id"`
 	ManufacturerID *string `json:"manufacturer_id"`
+	TaxGroupID     *string `json:"tax_group_id"`
+	NCMID          *string `json:"ncm_id"`
+	CESTID         *string `json:"cest_id"`
+	FiscalOrigin   *string `json:"fiscal_origin"` // se vier nil, vamos assumir "0"
 }
 
 type ProductUpdateInput struct {
@@ -39,6 +47,10 @@ type ProductUpdateInput struct {
 	CategoryID     *string `json:"category_id"`
 	SupplierID     *string `json:"supplier_id"`
 	ManufacturerID *string `json:"manufacturer_id"`
+	TaxGroupID     *string `json:"tax_group_id"`
+	NCMID          *string `json:"ncm_id"`
+	CESTID         *string `json:"cest_id"`
+	FiscalOrigin   *string `json:"fiscal_origin"`
 }
 
 // ============================================================
@@ -169,10 +181,26 @@ func (h *ProductHandler) CreateProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	fo := "0"
+	if in.FiscalOrigin != nil && strings.TrimSpace(*in.FiscalOrigin) != "" {
+		fo = strings.TrimSpace(*in.FiscalOrigin)
+	}
+
 	_, err = h.DB.Exec(`
-		insert into products (id, tenant_id, code, name, category_id, supplier_id, manufacturer_id)
-		values ($1, $2, $3, $4, $5, $6, $7)
-	`,
+			insert into products (
+				id,
+				tenant_id,
+				code,
+				name,
+				category_id,
+				supplier_id,
+				manufacturer_id,
+				tax_group_id,
+				ncm_id,
+				cest_id,
+				fiscal_origin
+			) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+		`,
 		id,
 		tenantID,
 		nextCode,
@@ -180,6 +208,10 @@ func (h *ProductHandler) CreateProduct(w http.ResponseWriter, r *http.Request) {
 		in.CategoryID,
 		in.SupplierID,
 		in.ManufacturerID,
+		in.TaxGroupID,
+		in.NCMID,
+		in.CESTID,
+		fo,
 	)
 
 	if err != nil {
@@ -195,6 +227,10 @@ func (h *ProductHandler) CreateProduct(w http.ResponseWriter, r *http.Request) {
 		CategoryID:     in.CategoryID,
 		SupplierID:     in.SupplierID,
 		ManufacturerID: in.ManufacturerID,
+		TaxGroupID:     in.TaxGroupID,
+		NCMID:          in.NCMID,
+		CESTID:         in.CESTID,
+		FiscalOrigin:   fo,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -228,7 +264,11 @@ func (h *ProductHandler) ListProducts(w http.ResponseWriter, r *http.Request) {
 			name,
 			category_id,
 			supplier_id,
-			manufacturer_id
+			manufacturer_id,
+			tax_group_id,
+			ncm_id,
+			cest_id,
+			fiscal_origin
 		from products
 		where tenant_id = $1
 		order by name asc
@@ -248,6 +288,10 @@ func (h *ProductHandler) ListProducts(w http.ResponseWriter, r *http.Request) {
 			categoryID     sql.NullString
 			supplierID     sql.NullString
 			manufacturerID sql.NullString
+			taxGroupID     sql.NullString
+			ncmID          sql.NullString
+			cestID         sql.NullString
+			fiscalOrigin   string // NOT NULL na base
 		)
 
 		if err := rows.Scan(
@@ -258,24 +302,45 @@ func (h *ProductHandler) ListProducts(w http.ResponseWriter, r *http.Request) {
 			&categoryID,
 			&supplierID,
 			&manufacturerID,
+			&taxGroupID,
+			&ncmID,
+			&cestID,
+			&fiscalOrigin,
 		); err != nil {
-			// ...
+			http.Error(w, "erro ao ler produtos: "+err.Error(), http.StatusInternalServerError)
+			return
 		}
 
 		if categoryID.Valid {
-			val := categoryID.String
-			p.CategoryID = &val
+			v := categoryID.String
+			p.CategoryID = &v
 		}
 		if supplierID.Valid {
-			val := supplierID.String
-			p.SupplierID = &val
+			v := supplierID.String
+			p.SupplierID = &v
 		}
 		if manufacturerID.Valid {
-			val := manufacturerID.String
-			p.ManufacturerID = &val
+			v := manufacturerID.String
+			p.ManufacturerID = &v
+		}
+		if taxGroupID.Valid {
+			v := taxGroupID.String
+			p.TaxGroupID = &v
+		}
+		if ncmID.Valid {
+			v := ncmID.String
+			p.NCMID = &v
+		}
+		if cestID.Valid {
+			v := cestID.String
+			p.CESTID = &v
 		}
 
+		// fiscal_origin sempre tem valor
+		p.FiscalOrigin = fiscalOrigin
+
 		products = append(products, p)
+
 	}
 
 	if err := rows.Err(); err != nil {
@@ -314,6 +379,10 @@ func (h *ProductHandler) GetProductByID(
 		categoryID     sql.NullString
 		supplierID     sql.NullString
 		manufacturerID sql.NullString
+		taxGroupID     sql.NullString
+		ncmID          sql.NullString
+		cestID         sql.NullString
+		fiscalOrigin   string // NOT NULL na base
 	)
 
 	err = h.DB.QueryRow(`
@@ -324,10 +393,14 @@ func (h *ProductHandler) GetProductByID(
 			name,
 			category_id,
 			supplier_id,
-			manufacturer_id
+			manufacturer_id,
+			tax_group_id,
+			ncm_id,
+			cest_id,
+			fiscal_origin
 		from products
 		where id = $1
-		and tenant_id = $2
+		  and tenant_id = $2
 	`, id, tenantID).Scan(
 		&p.ID,
 		&p.TenantID,
@@ -336,20 +409,37 @@ func (h *ProductHandler) GetProductByID(
 		&categoryID,
 		&supplierID,
 		&manufacturerID,
+		&taxGroupID,
+		&ncmID,
+		&cestID,
+		&fiscalOrigin,
 	)
 
 	if categoryID.Valid {
-		val := categoryID.String
-		p.CategoryID = &val
+		v := categoryID.String
+		p.CategoryID = &v
 	}
 	if supplierID.Valid {
-		val := supplierID.String
-		p.SupplierID = &val
+		v := supplierID.String
+		p.SupplierID = &v
 	}
 	if manufacturerID.Valid {
-		val := manufacturerID.String
-		p.ManufacturerID = &val
+		v := manufacturerID.String
+		p.ManufacturerID = &v
 	}
+	if taxGroupID.Valid {
+		v := taxGroupID.String
+		p.TaxGroupID = &v
+	}
+	if ncmID.Valid {
+		v := ncmID.String
+		p.NCMID = &v
+	}
+	if cestID.Valid {
+		v := cestID.String
+		p.CESTID = &v
+	}
+	p.FiscalOrigin = fiscalOrigin
 
 	if err == sql.ErrNoRows {
 		http.Error(w, "produto não encontrado", http.StatusNotFound)
@@ -400,19 +490,33 @@ func (h *ProductHandler) UpdateProduct(
 		return
 	}
 
+	// define fiscal_origin com default "0" se não vier nada
+	fo := "0"
+	if in.FiscalOrigin != nil && strings.TrimSpace(*in.FiscalOrigin) != "" {
+		fo = strings.TrimSpace(*in.FiscalOrigin)
+	}
+
 	res, err := h.DB.Exec(`
-		update products
-		set name            = $1,
-			category_id      = $2,
-			supplier_id      = $3,
-			manufacturer_id  = $4
-		where id = $5
-		and tenant_id = $6
-	`,
+			update products
+			set name            = $1,
+				category_id      = $2,
+				supplier_id      = $3,
+				manufacturer_id  = $4,
+				tax_group_id     = $5,
+				ncm_id           = $6,
+				cest_id          = $7,
+				fiscal_origin    = $8
+			where id        = $9
+			and tenant_id  = $10
+		`,
 		in.Name,
 		in.CategoryID,
 		in.SupplierID,
 		in.ManufacturerID,
+		in.TaxGroupID,
+		in.NCMID,
+		in.CESTID,
+		fo,
 		id,
 		tenantID,
 	)

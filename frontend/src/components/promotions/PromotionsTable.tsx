@@ -255,7 +255,7 @@ export function PromotionsTable() {
                         <TooltipTrigger asChild>
                           <button
                             onClick={() =>
-                              navigate(`/catalogo/promocoes/${promo.id}`)
+                              navigate(`/catalogo/promocoes/${promo.id}/editar`)
                             }
                             className="p-2 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
                           >
