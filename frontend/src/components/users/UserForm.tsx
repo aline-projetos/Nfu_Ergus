@@ -21,7 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { getAuthHeaders, getBaseUrl, getTokenKey } from '@/lib/utils';
+import { getAuthHeaders, getBaseUrl,  } from '@/lib/utils';
 
 
 interface FormData {
@@ -48,7 +48,7 @@ const initialFormData: FormData = {
 };
 
   const buildHeaders = (options?: { targetTenantId?: string }) => {
-    const token = getTokenKey();
+    const token = localStorage.getItem('ergus_token');
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',

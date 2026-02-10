@@ -30,7 +30,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from 'sonner';
-import { getAuthHeaders, getBaseUrl, getTokenKey } from '@/lib/utils';
+import { getAuthHeaders, getBaseUrl,  } from '@/lib/utils';
 
 type SortField = 'name' | 'document' | 'document_type';
 type SortDirection = 'asc' | 'desc';
@@ -65,7 +65,7 @@ export function ClientsTable() {
     const fetchClients = async () => {
       setIsLoading(true);
       try {
-        const token = getTokenKey();
+        const token = localStorage.getItem('ergus_token');
 
         const resp = await fetch(`${getBaseUrl()}/tenants`, {
           headers: getAuthHeaders(),
@@ -166,7 +166,7 @@ export function ClientsTable() {
     );
 
     try {
-      const token = getTokenKey();
+      const token = localStorage.getItem('ergus_token');
 
       const payload = {
         name: client.name,
@@ -207,7 +207,7 @@ export function ClientsTable() {
     if (!deleteId) return;
 
     try {
-      const token = getTokenKey();
+      const token = localStorage.getItem('ergus_token');
 
       const resp = await fetch(`${getBaseUrl()}/tenants/${deleteId}`, {
         method: 'DELETE',

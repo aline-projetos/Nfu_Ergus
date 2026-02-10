@@ -34,7 +34,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { userTypes } from '@/data/mockUsers';
 import { toast } from 'sonner';
-import { getBaseUrl, getTokenKey } from '@/lib/utils';
+import { getBaseUrl } from '@/lib/utils';
 
 type SortField = 'codigo' | 'username' | 'type';
 type SortDirection = 'asc' | 'desc';
@@ -82,9 +82,8 @@ export function UsersTable() {
   const tenantId: string | undefined = loggedUser?.tenantId;
   const isSuperAdmin: boolean = !!(loggedUser?.isSuperAdmin ?? loggedUser?.is_super_admin);
 
-  // helper para montar headers considerando superusuário x usuário comum
   const buildHeaders = (options?: { targetTenantId?: string }) => {
-    const token = getTokenKey();
+    const token = localStorage.getItem('ergus_token'); 
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -93,9 +92,6 @@ export function UsersTable() {
     if (token) {
       headers.Authorization = `Bearer ${token}`;
     }
-
-    // se for superusuário, o tenant vem do alvo da ação (empresa do usuário que está sendo manipulado)
-    // se não for, usa o tenant do usuário logado
     const headerTenantId = isSuperAdmin ? options?.targetTenantId : tenantId;
 
     if (headerTenantId) {
@@ -128,8 +124,6 @@ export function UsersTable() {
     }
   };
 
-
-  // Carrega tenants
     useEffect(() => {
       const fetchTenants = async () => {
         try {
@@ -277,7 +271,7 @@ export function UsersTable() {
     );
 
     try {
-      const token = getTokenKey();
+      const token = localStorage.getItem('ergus_token');
 
       const payload = {
         tenantId: user.tenantId,
@@ -315,7 +309,7 @@ export function UsersTable() {
     if (!deleteId) return;
 
     try {
-      const token = getTokenKey();
+      const token = localStorage.getItem('ergus_token');
 
       const targetUser = users.find(u => u.id === deleteId);
 

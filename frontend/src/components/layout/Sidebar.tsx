@@ -38,14 +38,6 @@ const menuItems: MenuItem[] = [
     icon: Package,
     children: [
       { label: 'Categorias', path: '/catalogo/categorias' },
-      // { 
-      //   label: 'Variações',
-      //   children: [
-      //     { label: 'Tipos de Variações', path: '/catalogo/variacoes/tipos' },
-      //     { label: 'Grade X', path: '/catalogo/variacoes/gradex' },
-      //     { label: 'Grade Y', path: '/catalogo/variacoes/gradey' },
-      //   ],
-      // },
       { label: 'Produtos', path: '/catalogo/produtos' },
       { label: 'Promoções', path: '/catalogo/promocoes' },
       { label: 'Fornecedores', path: '/catalogo/fornecedores' },
@@ -60,7 +52,17 @@ const menuItems: MenuItem[] = [
       { label: 'Usuários', path: '/cadastros/admin/usuarios' },
     ]
   },
-  { label: 'Fiscal', icon: Receipt, path: '/fiscal' },
+  { 
+    label: 'Fiscal', 
+    icon: Receipt,
+    children: [
+      { label: 'Grupos de Tributação', path: '/fiscal/tributacao/grupos' },
+      { label: 'NCM', path: '/fiscal/ncm' },
+      { label: 'CEST', path: '/fiscal/cest' },
+      // futuramente: CFOP, regras especiais, etc.
+      // { label: 'CFOP', path: '/fiscal/cfop' },
+    ]
+  },
   { label: 'Vendas', icon: ShoppingCart, path: '/vendas' },
   { label: 'Relatórios', icon: BarChart3, path: '/relatorios' },
 ];

@@ -3,7 +3,6 @@ import { EggFried } from "lucide-react";
 import { twMerge } from "tailwind-merge";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
-const TOKEN_KEY = 'ergus_token';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -11,10 +10,6 @@ export function cn(...inputs: ClassValue[]) {
 
 export function getBaseUrl() {
   return API_BASE_URL
-}
-
-export function getTokenKey() {
-  return TOKEN_KEY
 }
 
 export function getAuthHeaders() {

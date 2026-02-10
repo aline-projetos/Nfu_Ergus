@@ -1,4 +1,4 @@
-import { getBaseUrl, getTokenKey } from '@/lib/utils';
+import { getBaseUrl,  } from '@/lib/utils';
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 interface User {
@@ -28,7 +28,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const token = getTokenKey();
+    const token = localStorage.getItem('ergus_token');
     const storedUser = localStorage.getItem(USER_KEY);
 
     if (token && storedUser) {

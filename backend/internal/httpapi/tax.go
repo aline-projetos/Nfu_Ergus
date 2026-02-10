@@ -3,10 +3,13 @@ package httpapi
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // -----------------------------------------------------------------------------
@@ -20,7 +23,7 @@ type TaxGroup struct {
 	Code         string    `json:"code"`
 	Name         string    `json:"name"`
 	Regime       string    `json:"regime"`      // ex: simples_nacional, lucro_presumido
-	ProductType  string    `json:"productType"` // ex: revenda, industrializacao, servico
+	TipoProduto  string    `json:"TipoProduto"` // ex: revenda, industrializacao, servico
 	UseICMSST    bool      `json:"useICMSST"`
 	UsePISCOFINS bool      `json:"usePISCOFINS"`
 	UseISS       bool      `json:"useISS"`
@@ -31,14 +34,13 @@ type TaxGroup struct {
 
 // Entrada para criar/atualizar
 type TaxGroupInput struct {
-	Code         string `json:"code"`
 	Name         string `json:"name"`
 	Regime       string `json:"regime"`
-	ProductType  string `json:"productType"`
-	UseICMSST    bool   `json:"useICMSST"`
-	UsePISCOFINS bool   `json:"usePISCOFINS"`
-	UseISS       bool   `json:"useISS"`
-	Active       bool   `json:"active"`
+	TipoProduto  string `json:"TipoProduto"`
+	UseICMSST    *bool  `json:"useICMSST"`
+	UsePISCOFINS *bool  `json:"usePISCOFINS"`
+	UseISS       *bool  `json:"useISS"`
+	Active       *bool  `json:"active"`
 }
 
 // NCM (lookup)
@@ -67,6 +69,42 @@ type TaxHandler struct {
 
 func NewTaxHandler(db *sql.DB) *TaxHandler {
 	return &TaxHandler{DB: db}
+}
+
+func (h *TaxHandler) generateNextTaxCode(tenantID string) (string, error) {
+	var lastCode sql.NullString
+
+	err := h.DB.QueryRow(`
+		select code
+		  from tax_groups
+		 where tenant_id = $1
+		   and code like 'TXG%'
+		 order by code desc
+		 limit 1
+	`, tenantID).Scan(&lastCode)
+
+	// nenhum código ainda -> começa em TXG001
+	if err == sql.ErrNoRows || !lastCode.Valid {
+		return "TXG001", nil
+	}
+	if err != nil {
+		return "", fmt.Errorf("erro ao buscar último código de grupo de tributação: %w", err)
+	}
+
+	code := lastCode.String
+	if len(code) < 4 {
+		return "", fmt.Errorf("código inválido encontrado: %s", code)
+	}
+
+	// prefixo "TXG" (3 chars), pega só a parte numérica
+	numStr := code[3:]
+	num, err := strconv.Atoi(numStr)
+	if err != nil {
+		return "", fmt.Errorf("código inválido encontrado: %s", code)
+	}
+	num++
+
+	return fmt.Sprintf("TXG%03d", num), nil
 }
 
 // Registro das rotas de tributação
@@ -163,7 +201,7 @@ func (h *TaxHandler) ListTaxGroups(w http.ResponseWriter, r *http.Request) {
 				code,
 				name,
 				regime,
-				product_type,
+				tipo_produto,
 				use_icms_st,
 				use_pis_cofins,
 				use_iss,
@@ -187,7 +225,7 @@ func (h *TaxHandler) ListTaxGroups(w http.ResponseWriter, r *http.Request) {
 				code,
 				name,
 				regime,
-				product_type,
+				tipo_produto,
 				use_icms_st,
 				use_pis_cofins,
 				use_iss,
@@ -217,7 +255,7 @@ func (h *TaxHandler) ListTaxGroups(w http.ResponseWriter, r *http.Request) {
 			&tg.Code,
 			&tg.Name,
 			&tg.Regime,
-			&tg.ProductType,
+			&tg.TipoProduto,
 			&tg.UseICMSST,
 			&tg.UsePISCOFINS,
 			&tg.UseISS,
@@ -266,88 +304,84 @@ func (h *TaxHandler) CreateTaxGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if strings.TrimSpace(in.Code) == "" || strings.TrimSpace(in.Name) == "" {
-		http.Error(w, "code e name são obrigatórios", http.StatusBadRequest)
+	if strings.TrimSpace(in.Name) == "" {
+		http.Error(w, "name é obrigatório", http.StatusBadRequest)
 		return
 	}
 
-	// valida código único por tenant
-	var exists bool
-	if err := h.DB.QueryRow(`
-		select exists(
-			select 1
-			  from tax_groups
-			 where tenant_id = $1
-			   and code = $2
-		)
-	`, tenantID, in.Code).Scan(&exists); err != nil {
-		http.Error(w, "erro ao validar código: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-	if exists {
-		http.Error(w, "já existe grupo de tributação com esse code", http.StatusBadRequest)
+	newID := uuid.NewString()
+	nextCode, err := h.generateNextTaxCode(tenantID)
+	if err != nil {
+		http.Error(w, "erro ao gerar código do grupo de tributação: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	var tg TaxGroup
+	ativo := true
+	if in.Active != nil {
+		ativo = *in.Active
+	}
 
-	err = h.DB.QueryRow(`
+	useICMSST := true
+	if in.UseICMSST != nil {
+		useICMSST = *in.UseICMSST
+	}
+
+	usePISCOFINS := true
+	if in.UsePISCOFINS != nil {
+		usePISCOFINS = *in.UsePISCOFINS
+	}
+
+	useISS := true
+	if in.UseISS != nil {
+		useISS = *in.UseISS
+	}
+
+	_, err = h.DB.Exec(`
 		insert into tax_groups (
-			tenant_id,
-			code,
-			name,
-			regime,
-			product_type,
-			use_icms_st,
-			use_pis_cofins,
-			use_iss,
-			active
-		) values ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-		returning
 			id,
 			tenant_id,
 			code,
 			name,
 			regime,
-			product_type,
+			tipo_produto,
 			use_icms_st,
 			use_pis_cofins,
 			use_iss,
-			active,
-			created_at,
-			updated_at
+			active
+		) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
 	`,
+		newID,
 		tenantID,
-		in.Code,
-		in.Name,
-		in.Regime,
-		in.ProductType,
-		in.UseICMSST,
-		in.UsePISCOFINS,
-		in.UseISS,
-		in.Active,
-	).Scan(
-		&tg.ID,
-		&tg.TenantID,
-		&tg.Code,
-		&tg.Name,
-		&tg.Regime,
-		&tg.ProductType,
-		&tg.UseICMSST,
-		&tg.UsePISCOFINS,
-		&tg.UseISS,
-		&tg.Active,
-		&tg.CreatedAt,
-		&tg.UpdatedAt,
+		nextCode,
+		strings.TrimSpace(in.Name),
+		strings.TrimSpace(in.Regime),
+		strings.TrimSpace(in.TipoProduto),
+		useICMSST,
+		usePISCOFINS,
+		useISS,
+		ativo,
 	)
 	if err != nil {
 		http.Error(w, "erro ao salvar grupo de tributação: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
+	out := TaxGroup{
+		ID:           newID,
+		TenantID:     tenantID,
+		Code:         nextCode,
+		Name:         strings.TrimSpace(in.Name),
+		Regime:       strings.TrimSpace(in.Regime),
+		TipoProduto:  strings.TrimSpace(in.TipoProduto),
+		UseICMSST:    useICMSST,
+		UsePISCOFINS: usePISCOFINS,
+		UseISS:       useISS,
+		Active:       ativo,
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	_ = json.NewEncoder(w).Encode(tg)
+	_ = json.NewEncoder(w).Encode(out)
 }
 
 // -----------------------------------------------------------------------------
@@ -374,7 +408,7 @@ func (h *TaxHandler) GetTaxGroupByID(w http.ResponseWriter, r *http.Request, id 
 			code,
 			name,
 			regime,
-			product_type,
+			tipo_produto,
 			use_icms_st,
 			use_pis_cofins,
 			use_iss,
@@ -390,7 +424,7 @@ func (h *TaxHandler) GetTaxGroupByID(w http.ResponseWriter, r *http.Request, id 
 		&tg.Code,
 		&tg.Name,
 		&tg.Regime,
-		&tg.ProductType,
+		&tg.TipoProduto,
 		&tg.UseICMSST,
 		&tg.UsePISCOFINS,
 		&tg.UseISS,
@@ -435,52 +469,52 @@ func (h *TaxHandler) UpdateTaxGroup(w http.ResponseWriter, r *http.Request, id s
 		return
 	}
 
-	if strings.TrimSpace(in.Code) == "" || strings.TrimSpace(in.Name) == "" {
-		http.Error(w, "code e name são obrigatórios", http.StatusBadRequest)
+	if strings.TrimSpace(in.Name) == "" {
+		http.Error(w, "name é obrigatório", http.StatusBadRequest)
 		return
 	}
 
-	// valida código único em outro registro
-	var exists bool
-	if err := h.DB.QueryRow(`
-		select exists(
-			select 1
-			  from tax_groups
-			 where tenant_id = $1
-			   and code = $2
-			   and id <> $3
-		)
-	`, tenantID, in.Code, id).Scan(&exists); err != nil {
-		http.Error(w, "erro ao validar código: "+err.Error(), http.StatusInternalServerError)
-		return
+	// Mesma lógica de defaults do CreateTaxGroup
+	ativo := true
+	if in.Active != nil {
+		ativo = *in.Active
 	}
-	if exists {
-		http.Error(w, "já existe grupo de tributação com esse code", http.StatusBadRequest)
-		return
+
+	useICMSST := true
+	if in.UseICMSST != nil {
+		useICMSST = *in.UseICMSST
+	}
+
+	usePISCOFINS := true
+	if in.UsePISCOFINS != nil {
+		usePISCOFINS = *in.UsePISCOFINS
+	}
+
+	useISS := true
+	if in.UseISS != nil {
+		useISS = *in.UseISS
 	}
 
 	res, err := h.DB.Exec(`
 		update tax_groups
-		   set code         = $1,
-		       name         = $2,
-		       regime       = $3,
-		       product_type = $4,
-		       use_icms_st  = $5,
-		       use_pis_cofins = $6,
-		       use_iss      = $7,
-		       active       = $8,
-		       updated_at   = now()
-		 where id        = $9
-		   and tenant_id  = $10
+		   set name           = $1,
+		       regime         = $2,
+		       tipo_produto   = $3,
+		       use_icms_st    = $4,
+		       use_pis_cofins = $5,
+		       use_iss        = $6,
+		       active         = $7,
+		       updated_at     = now()
+		 where id        = $8
+		   and tenant_id  = $9
 	`,
-		in.Code,
-		in.Name,
-		in.Regime,
-		in.ProductType,
-		in.UseICMSST,
-		in.UsePISCOFINS,
-		in.UseISS,
-		in.Active,
+		strings.TrimSpace(in.Name),
+		strings.TrimSpace(in.Regime),
+		strings.TrimSpace(in.TipoProduto),
+		useICMSST,
+		usePISCOFINS,
+		useISS,
+		ativo,
 		id,
 		tenantID,
 	)
@@ -495,7 +529,7 @@ func (h *TaxHandler) UpdateTaxGroup(w http.ResponseWriter, r *http.Request, id s
 		return
 	}
 
-	// recarrega
+	// recarrega o registro atualizado
 	h.GetTaxGroupByID(w, r, id)
 }
 

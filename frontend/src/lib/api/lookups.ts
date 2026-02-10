@@ -85,3 +85,40 @@ export async function searchProducts(q: string, page = 1, pageSize = 20): Promis
         page_size: pageSize,
     });
 }
+
+export interface NCM {
+  id: string;
+  code: string;
+  description: string;
+  exVersion?: string | null;
+}
+
+export interface CEST {
+  id: string;
+  code: string;
+  description: string;
+  ncmCode?: string | null;
+}
+
+async function parseError(res: Response) {
+  const text = await res.text();
+  return text || `Erro HTTP ${res.status}`;
+}
+
+export async function searchNCM(q: string): Promise<NCM[]> {
+  if (q.trim().length < 3) return [];
+  const res = await fetch(`${getBaseUrl()}/lookups/ncm?q=${encodeURIComponent(q)}`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await parseError(res));
+  return res.json();
+}
+
+export async function searchCEST(q: string): Promise<CEST[]> {
+  if (q.trim().length < 3) return [];
+  const res = await fetch(`${getBaseUrl()}/lookups/cest?q=${encodeURIComponent(q)}`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await parseError(res));
+  return res.json();
+}

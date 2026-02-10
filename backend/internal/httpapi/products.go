@@ -628,13 +628,30 @@ func (h *ProductHandler) handleProductByCode(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	var p Product
+	var (
+		p              Product
+		categoryID     sql.NullString
+		supplierID     sql.NullString
+		manufacturerID sql.NullString
+		taxGroupID     sql.NullString
+		ncmID          sql.NullString
+		cestID         sql.NullString
+		fiscalOrigin   string
+	)
+
 	err = h.DB.QueryRow(`
 		select
 			id,
 			tenant_id,
 			code,
-			name
+			name,
+			category_id,
+			supplier_id,
+			manufacturer_id,
+			tax_group_id,
+			ncm_id,
+			cest_id,
+			fiscal_origin
 		from products
 		where code = $1
 		  and tenant_id = $2
@@ -643,6 +660,13 @@ func (h *ProductHandler) handleProductByCode(w http.ResponseWriter, r *http.Requ
 		&p.TenantID,
 		&p.Code,
 		&p.Name,
+		&categoryID,
+		&supplierID,
+		&manufacturerID,
+		&taxGroupID,
+		&ncmID,
+		&cestID,
+		&fiscalOrigin,
 	)
 
 	if err == sql.ErrNoRows {
@@ -653,6 +677,33 @@ func (h *ProductHandler) handleProductByCode(w http.ResponseWriter, r *http.Requ
 		http.Error(w, "erro ao buscar produto: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	if categoryID.Valid {
+		v := categoryID.String
+		p.CategoryID = &v
+	}
+	if supplierID.Valid {
+		v := supplierID.String
+		p.SupplierID = &v
+	}
+	if manufacturerID.Valid {
+		v := manufacturerID.String
+		p.ManufacturerID = &v
+	}
+	if taxGroupID.Valid {
+		v := taxGroupID.String
+		p.TaxGroupID = &v
+	}
+	if ncmID.Valid {
+		v := ncmID.String
+		p.NCMID = &v
+	}
+	if cestID.Valid {
+		v := cestID.String
+		p.CESTID = &v
+	}
+
+	p.FiscalOrigin = fiscalOrigin
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(p)
@@ -688,14 +739,31 @@ func (h *ProductHandler) handleDuplicateProduct(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	var original Product
+	var (
+		original       Product
+		categoryID     sql.NullString
+		supplierID     sql.NullString
+		manufacturerID sql.NullString
+		taxGroupID     sql.NullString
+		ncmID          sql.NullString
+		cestID         sql.NullString
+		fiscalOrigin   string
+	)
 
+	// carrega produto original com tributação
 	err = h.DB.QueryRow(`
 		select
 			id,
 			tenant_id,
 			code,
-			name
+			name,
+			category_id,
+			supplier_id,
+			manufacturer_id,
+			tax_group_id,
+			ncm_id,
+			cest_id,
+			fiscal_origin
 		from products
 		where id = $1
 		  and tenant_id = $2
@@ -704,6 +772,13 @@ func (h *ProductHandler) handleDuplicateProduct(w http.ResponseWriter, r *http.R
 		&original.TenantID,
 		&original.Code,
 		&original.Name,
+		&categoryID,
+		&supplierID,
+		&manufacturerID,
+		&taxGroupID,
+		&ncmID,
+		&cestID,
+		&fiscalOrigin,
 	)
 
 	if err == sql.ErrNoRows {
@@ -715,6 +790,32 @@ func (h *ProductHandler) handleDuplicateProduct(w http.ResponseWriter, r *http.R
 		return
 	}
 
+	if categoryID.Valid {
+		v := categoryID.String
+		original.CategoryID = &v
+	}
+	if supplierID.Valid {
+		v := supplierID.String
+		original.SupplierID = &v
+	}
+	if manufacturerID.Valid {
+		v := manufacturerID.String
+		original.ManufacturerID = &v
+	}
+	if taxGroupID.Valid {
+		v := taxGroupID.String
+		original.TaxGroupID = &v
+	}
+	if ncmID.Valid {
+		v := ncmID.String
+		original.NCMID = &v
+	}
+	if cestID.Valid {
+		v := cestID.String
+		original.CESTID = &v
+	}
+	original.FiscalOrigin = fiscalOrigin
+
 	// novo id + novo código
 	newID := uuid.NewString()
 	newCode, err := h.generateNextProductCode(tenantID)
@@ -723,15 +824,33 @@ func (h *ProductHandler) handleDuplicateProduct(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	// insere cópia
+	// insere cópia já com tributação
 	_, err = h.DB.Exec(`
-		insert into products (id, tenant_id, code, name)
-		values ($1, $2, $3, $4)
+		insert into products (
+			id,
+			tenant_id,
+			code,
+			name,
+			category_id,
+			supplier_id,
+			manufacturer_id,
+			tax_group_id,
+			ncm_id,
+			cest_id,
+			fiscal_origin
+		) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
 	`,
 		newID,
 		tenantID,
 		newCode,
 		original.Name+" (Cópia)",
+		original.CategoryID,
+		original.SupplierID,
+		original.ManufacturerID,
+		original.TaxGroupID,
+		original.NCMID,
+		original.CESTID,
+		original.FiscalOrigin,
 	)
 	if err != nil {
 		http.Error(w, "erro ao salvar produto copiado: "+err.Error(), http.StatusInternalServerError)
@@ -739,10 +858,17 @@ func (h *ProductHandler) handleDuplicateProduct(w http.ResponseWriter, r *http.R
 	}
 
 	out := Product{
-		ID:       newID,
-		TenantID: tenantID,
-		Code:     newCode,
-		Name:     original.Name + " (Cópia)",
+		ID:             newID,
+		TenantID:       tenantID,
+		Code:           newCode,
+		Name:           original.Name + " (Cópia)",
+		CategoryID:     original.CategoryID,
+		SupplierID:     original.SupplierID,
+		ManufacturerID: original.ManufacturerID,
+		TaxGroupID:     original.TaxGroupID,
+		NCMID:          original.NCMID,
+		CESTID:         original.CESTID,
+		FiscalOrigin:   original.FiscalOrigin,
 	}
 
 	w.Header().Set("Content-Type", "application/json")

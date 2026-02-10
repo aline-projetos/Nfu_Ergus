@@ -39,6 +39,10 @@ import PlaceholderPage from "./pages/PlaceholderPage";
 import NotFound from "./pages/NotFound";
 import { PromotionWizard } from "./components/promotions/PromotionWizard";
 
+import TaxGroups from "./pages/tax/TaxGroup";
+import NewTaxGroup from "./pages/tax/NewTaxGroup";
+import EditTaxGroup from "./pages/tax/EditTaxGroup";
+
 const App = () => {
   return (
     <Routes>
@@ -115,6 +119,13 @@ const App = () => {
           />
 
           <Route path="/fiscal" element={<PlaceholderPage />} />
+          <Route path="/fiscal/tributacao/grupos" element={<TaxGroups />} />
+          <Route path="/fiscal/tributacao/grupos/novo" element={<NewTaxGroup />} />
+          <Route path="/fiscal/tributacao/grupos/:id/editar" element={<EditTaxGroup />} />
+          
+          <Route path="/fiscal/ncm" element={<PlaceholderPage />} />
+          <Route path="/fiscal/cest" element={<PlaceholderPage />} />
+
           <Route path="/vendas" element={<PlaceholderPage />} />
           <Route path="/relatorios" element={<PlaceholderPage />} />
         </Route>

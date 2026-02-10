@@ -338,7 +338,6 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 // GET /users (lista, por tenant, sem super admin)
 // -----------------------------------------------------------------------------
 func (h *UserHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
-	// 1) Autentica e OBTÉM o usuário logado
 	authUser, err := AuthenticateRequest(h.DB, r)
 	if err != nil {
 		http.Error(w, "não autorizado: "+err.Error(), http.StatusUnauthorized)
@@ -347,7 +346,6 @@ func (h *UserHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 
 	var rows *sql.Rows
 
-	// 2) Se for superusuário, ignora tenant_id e traz todo mundo
 	if authUser.IsSuperAdmin {
 		rows, err = h.DB.Query(`
 			SELECT

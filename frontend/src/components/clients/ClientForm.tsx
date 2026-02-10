@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { getAuthHeaders, getBaseUrl, getTokenKey } from '@/lib/utils';
+import { getAuthHeaders, getBaseUrl,  } from '@/lib/utils';
 
 interface FormData {
   name: string;
@@ -47,7 +47,7 @@ export function ClientForm() {
       setIsLoading(true);
 
       try {
-        const token = getTokenKey();
+        const token = localStorage.getItem('ergus_token');
 
         const resp = await fetch(`${getBaseUrl()}/tenants/${id}`, {
           headers: getAuthHeaders(),
@@ -125,7 +125,7 @@ export function ClientForm() {
 
     setIsSaving(true);
     try {
-      const token = getTokenKey();
+      const token = localStorage.getItem('ergus_token');
 
       const payload = {
         name: formData.name.trim(),

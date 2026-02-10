@@ -1,4 +1,4 @@
-import { getAuthHeaders, getBaseUrl, getTokenKey } from "../utils";
+import { getAuthHeaders, getBaseUrl,  } from "../utils";
 
 // src/lib/api/categories.ts
 export interface Category {
@@ -33,7 +33,7 @@ async function parseError(res: Response) {
 }
 
 export async function listCategories(): Promise<Category[]> {
-  const token = getTokenKey();
+  const token = localStorage.getItem('ergus_token');
   const tenantId = JSON.parse(localStorage.getItem('ergus_user') || '{}').tenantId;
   const res = await fetch(`${getBaseUrl()}/categories`, {
     headers: getAuthHeaders(),
@@ -43,7 +43,7 @@ export async function listCategories(): Promise<Category[]> {
 }
 
 export async function getCategoryById(id: string): Promise<Category> {
-  const token = getTokenKey();
+  const token = localStorage.getItem('ergus_token');
   const tenantId = JSON.parse(localStorage.getItem('ergus_user') || '{}').tenantId;
   const res = await fetch(`${getBaseUrl()}/categories/${id}`, {
     headers: getAuthHeaders(),
@@ -53,7 +53,7 @@ export async function getCategoryById(id: string): Promise<Category> {
 }
 
 export async function createCategory(payload: CreateCategoryInput): Promise<Category> {
-  const token = getTokenKey();
+  const token = localStorage.getItem('ergus_token');
   const tenantId = JSON.parse(localStorage.getItem('ergus_user') || '{}').tenantId;
   const res = await fetch(`${getBaseUrl()}/categories`, {
     method: "POST",
@@ -65,7 +65,7 @@ export async function createCategory(payload: CreateCategoryInput): Promise<Cate
 }
 
 export async function deleteCategory(id: string): Promise<void> {
-  const token = getTokenKey();
+  const token = localStorage.getItem('ergus_token');
   const tenantId = JSON.parse(localStorage.getItem('ergus_user') || '{}').tenantId;
   const res = await fetch(`${getBaseUrl()}/categories/${id}`, {
     method: "DELETE",
@@ -77,7 +77,7 @@ export async function deleteCategory(id: string): Promise<void> {
 export type UpdateCategoryInput = Omit<Category, "id" | "code">;
 
 export async function updateCategory(id: string, payload: UpdateCategoryInput): Promise<Category> {
-  const token = getTokenKey();
+  const token = localStorage.getItem('ergus_token');
   const tenantId = JSON.parse(localStorage.getItem('ergus_user') || '{}').tenantId;
   const res = await fetch(`${getBaseUrl()}/categories/${id}`, {
     method: "PUT",
@@ -89,7 +89,7 @@ export async function updateCategory(id: string, payload: UpdateCategoryInput): 
 }
 
 export async function getCategoryByCode(code: string): Promise<Category> {
-  const token = getTokenKey();
+  const token = localStorage.getItem('ergus_token');
   const tenantId = JSON.parse(localStorage.getItem('ergus_user') || '{}').tenantId;
   const res = await fetch(`${getBaseUrl()}/categories/by-code?code=${encodeURIComponent(code)}`, {
     headers: getAuthHeaders(),
@@ -99,7 +99,7 @@ export async function getCategoryByCode(code: string): Promise<Category> {
 }
 
 export async function duplicateCategory(id: string): Promise<Category> {
-  const token = getTokenKey();
+  const token = localStorage.getItem('ergus_token');
   const tenantId = JSON.parse(localStorage.getItem('ergus_user') || '{}').tenantId;
   const res = await fetch(`${getBaseUrl()}/categories/duplicate/${id}`, {
     method: "POST",
