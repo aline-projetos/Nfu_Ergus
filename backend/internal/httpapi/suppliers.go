@@ -215,6 +215,20 @@ func (h *SupplierHandler) handleSupplierByID(w http.ResponseWriter, r *http.Requ
 // POST /suppliers
 // -----------------------------------------------------------------------------
 
+// CreateSupplier godoc
+// @Summary     Cria fornecedor
+// @Description Cria um novo fornecedor para o tenant, gerando codigo FORN###
+// @Tags        Suppliers
+// @Accept      json
+// @Produce     json
+// @Param       Authorization header string true "Bearer <token>"
+// @Param       X-Tenant-ID header string true "Tenant ID"
+// @Param       body body SupplierInput true "Dados do fornecedor (nome, tipo, cidade, uf obrigatórios)"
+// @Success     201 {object} Supplier
+// @Failure     400 {string} string "Erro de validação / JSON inválido / tenant inválido"
+// @Failure     401 {string} string "Não autenticado"
+// @Failure     500 {string} string "Erro interno"
+// @Router      /suppliers [post]
 func (h *SupplierHandler) CreateSupplier(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
@@ -367,6 +381,21 @@ func (h *SupplierHandler) CreateSupplier(w http.ResponseWriter, r *http.Request)
 // GET /suppliers
 // -----------------------------------------------------------------------------
 
+// ListSuppliers godoc
+// @Summary     Lista fornecedores
+// @Description Lista fornecedores do tenant (com paginação e busca por código exato ou nome contendo q)
+// @Tags        Suppliers
+// @Produce     json
+// @Param       Authorization header string true "Bearer <token>"
+// @Param       X-Tenant-ID header string true "Tenant ID"
+// @Param       q query string false "Filtro: codigo exato OU nome contendo (case-insensitive)"
+// @Param       page query int false "Página (default 1)"
+// @Param       page_size query int false "Tamanho da página (default 50, máx 200)"
+// @Success     200 {array} Supplier
+// @Failure     400 {string} string "Tenant inválido"
+// @Failure     401 {string} string "Não autenticado"
+// @Failure     500 {string} string "Erro interno"
+// @Router      /suppliers [get]
 func (h *SupplierHandler) ListSuppliers(w http.ResponseWriter, r *http.Request) {
 	// 1) sessão
 	if _, err := RequireSession(h.DB, r); err != nil {
@@ -529,6 +558,20 @@ func (h *SupplierHandler) ListSuppliers(w http.ResponseWriter, r *http.Request) 
 // GET /suppliers/{id}
 // -----------------------------------------------------------------------------
 
+// GetSupplierByID godoc
+// @Summary     Busca fornecedor por ID
+// @Description Retorna um fornecedor específico pelo ID dentro do tenant
+// @Tags        Suppliers
+// @Produce     json
+// @Param       Authorization header string true "Bearer <token>"
+// @Param       X-Tenant-ID header string true "Tenant ID"
+// @Param       id path string true "ID do fornecedor"
+// @Success     200 {object} Supplier
+// @Failure     400 {string} string "Tenant inválido"
+// @Failure     401 {string} string "Não autenticado"
+// @Failure     404 {string} string "Fornecedor não encontrado"
+// @Failure     500 {string} string "Erro interno"
+// @Router      /suppliers/{id} [get]
 func (h *SupplierHandler) GetSupplierByID(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -622,6 +665,22 @@ func (h *SupplierHandler) GetSupplierByID(
 // PUT /suppliers/{id}
 // -----------------------------------------------------------------------------
 
+// UpdateSupplier godoc
+// @Summary     Atualiza fornecedor
+// @Description Atualiza um fornecedor existente pelo ID dentro do tenant
+// @Tags        Suppliers
+// @Accept      json
+// @Produce     json
+// @Param       Authorization header string true "Bearer <token>"
+// @Param       X-Tenant-ID header string true "Tenant ID"
+// @Param       id path string true "ID do fornecedor"
+// @Param       body body SupplierUpdateInput true "Dados para atualização (nome, tipo, cidade, uf obrigatórios)"
+// @Success     200 {object} Supplier
+// @Failure     400 {string} string "Erro de validação / JSON inválido / tenant inválido"
+// @Failure     401 {string} string "Não autenticado"
+// @Failure     404 {string} string "Fornecedor não encontrado"
+// @Failure     500 {string} string "Erro interno"
+// @Router      /suppliers/{id} [put]
 func (h *SupplierHandler) UpdateSupplier(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -805,6 +864,19 @@ func (h *SupplierHandler) UpdateSupplier(
 // DELETE /suppliers/{id}
 // -----------------------------------------------------------------------------
 
+// DeleteSupplier godoc
+// @Summary     Exclui fornecedor
+// @Description Remove um fornecedor pelo ID dentro do tenant
+// @Tags        Suppliers
+// @Param       Authorization header string true "Bearer <token>"
+// @Param       X-Tenant-ID header string true "Tenant ID"
+// @Param       id path string true "ID do fornecedor"
+// @Success     204 {string} string "Sem conteúdo"
+// @Failure     400 {string} string "Tenant inválido"
+// @Failure     401 {string} string "Não autenticado"
+// @Failure     404 {string} string "Fornecedor não encontrado"
+// @Failure     500 {string} string "Erro interno"
+// @Router      /suppliers/{id} [delete]
 func (h *SupplierHandler) DeleteSupplier(
 	w http.ResponseWriter,
 	r *http.Request,

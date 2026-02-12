@@ -7,6 +7,10 @@ import (
 	"github.com/GlauciaVita/erGus_backend/internal/config"
 	"github.com/GlauciaVita/erGus_backend/internal/db"
 	httpapi "github.com/GlauciaVita/erGus_backend/internal/httpapi"
+
+	_ "github.com/GlauciaVita/erGus_backend/internal/docs"
+	httpSwagger "github.com/swaggo/http-swagger"
+
 	"github.com/joho/godotenv"
 )
 
@@ -29,6 +33,13 @@ func withCORS(next http.Handler) http.Handler {
 	})
 }
 
+// @title        erGus API
+// @version      1.0
+// @description  API do ERP erGus (multi-tenant, categorias, produtos, etc).
+
+// @host      localhost:8080
+// @BasePath  /
+
 func main() {
 	_ = godotenv.Load()
 
@@ -48,6 +59,13 @@ func main() {
 	defer pg.Close()
 
 	mux := http.NewServeMux()
+
+	mux.Handle("/docs/", httpSwagger.WrapHandler)
+
+	//opcional: redirecionar /docs -> /docs/index.html (qualquer coisa que não termine com /)
+	mux.HandleFunc("/docs", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/docs/index.html", http.StatusMovedPermanently)
+	})
 
 	mux.HandleFunc("/health", httpapi.HealthHandler)
 

@@ -209,6 +209,20 @@ func (h *ManufacturerHandler) handleManufacturerByID(w http.ResponseWriter, r *h
 // POST /manufacturers
 // -----------------------------------------------------------------------------
 
+// CreateManufacturer godoc
+// @Summary     Cria fabricante
+// @Description Cria um novo fabricante para o tenant, gerando codigo FAB### automaticamente
+// @Tags        Manufacturers
+// @Accept      json
+// @Produce     json
+// @Param       Authorization header string true "Bearer <token>"
+// @Param       X-Tenant-ID header string true "Tenant ID"
+// @Param       body body ManufacturerInput true "Dados do fabricante (nome, tipo, cidade, uf obrigatórios). ativo opcional"
+// @Success     201 {object} Manufacturer
+// @Failure     400 {string} string "Erro de validação / JSON inválido / tenant inválido"
+// @Failure     401 {string} string "Não autenticado"
+// @Failure     500 {string} string "Erro interno"
+// @Router      /manufacturers [post]
 func (h *ManufacturerHandler) CreateManufacturer(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
@@ -367,6 +381,21 @@ func (h *ManufacturerHandler) CreateManufacturer(w http.ResponseWriter, r *http.
 // GET /manufacturers
 // -----------------------------------------------------------------------------
 
+// ListManufacturers godoc
+// @Summary     Lista fabricantes
+// @Description Lista fabricantes do tenant com paginação e busca opcional por código ou nome
+// @Tags        Manufacturers
+// @Produce     json
+// @Param       Authorization header string true "Bearer <token>"
+// @Param       X-Tenant-ID header string true "Tenant ID"
+// @Param       q query string false "Busca por codigo exato ou nome contendo (case-insensitive)"
+// @Param       page query int false "Página (default 1)"
+// @Param       page_size query int false "Tamanho da página (default 50, max 200)"
+// @Success     200 {array} Manufacturer
+// @Failure     400 {string} string "Tenant inválido"
+// @Failure     401 {string} string "Não autenticado"
+// @Failure     500 {string} string "Erro interno"
+// @Router      /manufacturers [get]
 func (h *ManufacturerHandler) ListManufacturers(w http.ResponseWriter, r *http.Request) {
 	// 1) sessão
 	if _, err := RequireSession(h.DB, r); err != nil {
@@ -525,6 +554,20 @@ func (h *ManufacturerHandler) ListManufacturers(w http.ResponseWriter, r *http.R
 // GET /manufacturers/{id}
 // -----------------------------------------------------------------------------
 
+// GetManufacturerByID godoc
+// @Summary     Busca fabricante por ID
+// @Description Retorna um fabricante específico pelo ID dentro do tenant
+// @Tags        Manufacturers
+// @Produce     json
+// @Param       Authorization header string true "Bearer <token>"
+// @Param       X-Tenant-ID header string true "Tenant ID"
+// @Param       id path string true "ID do fabricante"
+// @Success     200 {object} Manufacturer
+// @Failure     400 {string} string "Tenant inválido"
+// @Failure     401 {string} string "Não autenticado"
+// @Failure     404 {string} string "Fabricante não encontrado"
+// @Failure     500 {string} string "Erro interno"
+// @Router      /manufacturers/{id} [get]
 func (h *ManufacturerHandler) GetManufacturerByID(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -615,6 +658,22 @@ func (h *ManufacturerHandler) GetManufacturerByID(
 // PUT /manufacturers/{id}
 // -----------------------------------------------------------------------------
 
+// UpdateManufacturer godoc
+// @Summary     Atualiza fabricante
+// @Description Atualiza os dados de um fabricante pelo ID dentro do tenant
+// @Tags        Manufacturers
+// @Accept      json
+// @Produce     json
+// @Param       Authorization header string true "Bearer <token>"
+// @Param       X-Tenant-ID header string true "Tenant ID"
+// @Param       id path string true "ID do fabricante"
+// @Param       body body ManufacturerUpdateInput true "Dados para atualização (nome, tipo, cidade, uf obrigatórios)"
+// @Success     200 {object} Manufacturer
+// @Failure     400 {string} string "Erro de validação / JSON inválido / tenant inválido"
+// @Failure     401 {string} string "Não autenticado"
+// @Failure     404 {string} string "Fabricante não encontrado"
+// @Failure     500 {string} string "Erro interno"
+// @Router      /manufacturers/{id} [put]
 func (h *ManufacturerHandler) UpdateManufacturer(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -791,6 +850,19 @@ func (h *ManufacturerHandler) UpdateManufacturer(
 // DELETE /manufacturers/{id}
 // -----------------------------------------------------------------------------
 
+// DeleteManufacturer godoc
+// @Summary     Exclui fabricante
+// @Description Remove um fabricante pelo ID dentro do tenant
+// @Tags        Manufacturers
+// @Param       Authorization header string true "Bearer <token>"
+// @Param       X-Tenant-ID header string true "Tenant ID"
+// @Param       id path string true "ID do fabricante"
+// @Success     204 {string} string "Sem conteúdo"
+// @Failure     400 {string} string "Tenant inválido"
+// @Failure     401 {string} string "Não autenticado"
+// @Failure     404 {string} string "Fabricante não encontrado"
+// @Failure     500 {string} string "Erro interno"
+// @Router      /manufacturers/{id} [delete]
 func (h *ManufacturerHandler) DeleteManufacturer(
 	w http.ResponseWriter,
 	r *http.Request,

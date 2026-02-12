@@ -138,6 +138,21 @@ func (h *TenantHandler) handleTenantByID(w http.ResponseWriter, r *http.Request)
 // POST /tenants
 // ------------------------
 
+// CreateTenant godoc
+// @Summary     Cria tenant
+// @Description Cria um novo tenant (CPF/CNPJ normalizado) — apenas super admin
+// @Tags        Tenants
+// @Accept      json
+// @Produce     json
+// @Param       Authorization header string true "Bearer <token>"
+// @Param       body body TenantInput true "Dados do tenant (name, document, documentType). ativo opcional"
+// @Success     201 {object} Tenant
+// @Failure     400 {string} string "JSON inválido ou validação falhou"
+// @Failure     401 {string} string "Não autenticado"
+// @Failure     403 {string} string "Apenas super administrador"
+// @Failure     409 {string} string "Document já cadastrado"
+// @Failure     500 {string} string "Erro interno"
+// @Router      /tenants [post]
 func (h *TenantHandler) CreateTenant(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
@@ -208,6 +223,16 @@ func (h *TenantHandler) CreateTenant(w http.ResponseWriter, r *http.Request) {
 // GET /tenants
 // ------------------------
 
+// ListTenants godoc
+// @Summary     Lista tenants
+// @Description Retorna lista de tenants ordenada por nome
+// @Tags        Tenants
+// @Produce     json
+// @Param       Authorization header string true "Bearer <token>"
+// @Success     200 {array} Tenant
+// @Failure     401 {string} string "Não autenticado"
+// @Failure     500 {string} string "Erro interno"
+// @Router      /tenants [get]
 func (h *TenantHandler) ListTenants(w http.ResponseWriter, r *http.Request) {
 	// exige sessão válida e super admin
 	_, err := RequireSession(h.DB, r)
@@ -267,6 +292,19 @@ func (h *TenantHandler) ListTenants(w http.ResponseWriter, r *http.Request) {
 // GET /tenants/{id}
 // ------------------------
 
+// GetTenantByID godoc
+// @Summary     Busca tenant por ID
+// @Description Retorna um tenant pelo ID — apenas super admin
+// @Tags        Tenants
+// @Produce     json
+// @Param       Authorization header string true "Bearer <token>"
+// @Param       id path string true "ID do tenant (UUID)"
+// @Success     200 {object} Tenant
+// @Failure     401 {string} string "Não autenticado"
+// @Failure     403 {string} string "Apenas super administrador"
+// @Failure     404 {string} string "Tenant não encontrado"
+// @Failure     500 {string} string "Erro interno"
+// @Router      /tenants/{id} [get]
 func (h *TenantHandler) GetTenantByID(w http.ResponseWriter, r *http.Request, id string) {
 	// exige sessão válida e super admin
 	sess, err := RequireSession(h.DB, r)
@@ -319,6 +357,23 @@ func (h *TenantHandler) GetTenantByID(w http.ResponseWriter, r *http.Request, id
 // PUT /tenants/{id}
 // ------------------------
 
+// UpdateTenant godoc
+// @Summary     Atualiza tenant
+// @Description Atualiza um tenant pelo ID — apenas super admin
+// @Tags        Tenants
+// @Accept      json
+// @Produce     json
+// @Param       Authorization header string true "Bearer <token>"
+// @Param       id path string true "ID do tenant (UUID)"
+// @Param       body body TenantInput true "Dados do tenant (name, document, documentType). ativo opcional"
+// @Success     200 {object} Tenant
+// @Failure     400 {string} string "JSON inválido ou validação falhou"
+// @Failure     401 {string} string "Não autenticado"
+// @Failure     403 {string} string "Apenas super administrador"
+// @Failure     404 {string} string "Tenant não encontrado"
+// @Failure     409 {string} string "Document já cadastrado"
+// @Failure     500 {string} string "Erro interno"
+// @Router      /tenants/{id} [put]
 func (h *TenantHandler) UpdateTenant(w http.ResponseWriter, r *http.Request, id string) {
 	defer r.Body.Close()
 
@@ -404,6 +459,19 @@ func (h *TenantHandler) UpdateTenant(w http.ResponseWriter, r *http.Request, id 
 // DELETE /tenants/{id}
 // ------------------------
 // Soft delete: ativo = false
+
+// DeleteTenant godoc
+// @Summary     Inativa tenant (soft delete)
+// @Description Marca o tenant como ativo=false — apenas super admin
+// @Tags        Tenants
+// @Param       Authorization header string true "Bearer <token>"
+// @Param       id path string true "ID do tenant (UUID)"
+// @Success     204 {string} string "Sem conteúdo"
+// @Failure     401 {string} string "Não autenticado"
+// @Failure     403 {string} string "Apenas super administrador"
+// @Failure     404 {string} string "Tenant não encontrado"
+// @Failure     500 {string} string "Erro interno"
+// @Router      /tenants/{id} [delete]
 func (h *TenantHandler) DeleteTenant(w http.ResponseWriter, r *http.Request, id string) {
 	// exige sessão válida e super admin
 	sess, err := RequireSession(h.DB, r)

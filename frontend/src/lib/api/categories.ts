@@ -1,4 +1,4 @@
-import { getAuthHeaders, getBaseUrl,  } from "../utils";
+import { getAuthHeaders, getBaseUrl, parseError } from "../utils";
 
 // src/lib/api/categories.ts
 export interface Category {
@@ -26,11 +26,6 @@ export type CreateCategoryInput = {
   siteLink?: string | null;
   description?: string | null;
 };
-
-async function parseError(res: Response) {
-  const text = await res.text();
-  return text || `Erro HTTP ${res.status}`;
-}
 
 export async function listCategories(): Promise<Category[]> {
   const token = localStorage.getItem('ergus_token');

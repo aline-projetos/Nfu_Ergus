@@ -128,6 +128,20 @@ func (h *PromotionHandler) HandlePromotionByID(w http.ResponseWriter, r *http.Re
 	}
 }
 
+// CreatePromotion godoc
+// @Summary     Cria promoção
+// @Description Cria uma nova promoção para o tenant, gerando code PROMO### e vinculando produtos/categorias (transaction)
+// @Tags        Promotions
+// @Accept      json
+// @Produce     json
+// @Param       Authorization header string true "Bearer <token>"
+// @Param       X-Tenant-ID header string true "Tenant ID"
+// @Param       body body Promotion true "Dados da promoção (name e type obrigatórios)"
+// @Success     201 {object} Promotion
+// @Failure     400 {string} string "Erro de validação / JSON inválido / tenant inválido"
+// @Failure     401 {string} string "Não autenticado"
+// @Failure     500 {string} string "Erro interno"
+// @Router      /promotions [post]
 func (h *PromotionHandler) CreatePromotion(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
@@ -241,6 +255,18 @@ func (h *PromotionHandler) CreatePromotion(w http.ResponseWriter, r *http.Reques
 	_ = json.NewEncoder(w).Encode(promo)
 }
 
+// ListPromotions godoc
+// @Summary     Lista promoções
+// @Description Lista promoções do tenant
+// @Tags        Promotions
+// @Produce     json
+// @Param       Authorization header string true "Bearer <token>"
+// @Param       X-Tenant-ID header string true "Tenant ID"
+// @Success     200 {array} Promotion
+// @Failure     400 {string} string "Tenant inválido"
+// @Failure     401 {string} string "Não autenticado"
+// @Failure     500 {string} string "Erro interno"
+// @Router      /promotions [get]
 func (h *PromotionHandler) ListPromotions(w http.ResponseWriter, r *http.Request) {
 	// 1) exige sessão válida
 	if _, err := RequireSession(h.DB, r); err != nil {
@@ -315,6 +341,20 @@ func (h *PromotionHandler) ListPromotions(w http.ResponseWriter, r *http.Request
 	_ = json.NewEncoder(w).Encode(promotions)
 }
 
+// GetPromotionByID godoc
+// @Summary     Busca promoção por ID
+// @Description Retorna uma promoção específica pelo ID dentro do tenant
+// @Tags        Promotions
+// @Produce     json
+// @Param       Authorization header string true "Bearer <token>"
+// @Param       X-Tenant-ID header string true "Tenant ID"
+// @Param       id path string true "ID da promoção"
+// @Success     200 {object} Promotion
+// @Failure     400 {string} string "Tenant inválido"
+// @Failure     401 {string} string "Não autenticado"
+// @Failure     404 {string} string "Promoção não encontrada"
+// @Failure     500 {string} string "Erro interno"
+// @Router      /promotions/{id} [get]
 func (h *PromotionHandler) GetPromotionByID(w http.ResponseWriter, r *http.Request, id string) {
 	// 1) sessão
 	if _, err := RequireSession(h.DB, r); err != nil {
@@ -376,6 +416,22 @@ func (h *PromotionHandler) GetPromotionByID(w http.ResponseWriter, r *http.Reque
 	_ = json.NewEncoder(w).Encode(p)
 }
 
+// UpdatePromotion godoc
+// @Summary     Atualiza promoção
+// @Description Atualiza uma promoção e recria os vínculos de produtos/categorias (transaction)
+// @Tags        Promotions
+// @Accept      json
+// @Produce     json
+// @Param       Authorization header string true "Bearer <token>"
+// @Param       X-Tenant-ID header string true "Tenant ID"
+// @Param       id path string true "ID da promoção"
+// @Param       body body PromotionUpdateInput true "Dados para atualização"
+// @Success     200 {object} Promotion
+// @Failure     400 {string} string "Erro de validação / JSON inválido / tenant inválido"
+// @Failure     401 {string} string "Não autenticado"
+// @Failure     404 {string} string "Promoção não encontrada"
+// @Failure     500 {string} string "Erro interno"
+// @Router      /promotions/{id} [put]
 func (h *PromotionHandler) UpdatePromotion(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -529,6 +585,19 @@ func (h *PromotionHandler) UpdatePromotion(
 
 }
 
+// DeletePromotion godoc
+// @Summary     Exclui promoção
+// @Description Remove uma promoção pelo ID dentro do tenant
+// @Tags        Promotions
+// @Param       Authorization header string true "Bearer <token>"
+// @Param       X-Tenant-ID header string true "Tenant ID"
+// @Param       id path string true "ID da promoção"
+// @Success     204 {string} string "Sem conteúdo"
+// @Failure     400 {string} string "Tenant inválido"
+// @Failure     401 {string} string "Não autenticado"
+// @Failure     404 {string} string "Promoção não encontrada"
+// @Failure     500 {string} string "Erro interno"
+// @Router      /promotions/{id} [delete]
 func (h *PromotionHandler) DeletePromotion(w http.ResponseWriter, r *http.Request, id string) {
 	// 1) sessão
 	if _, err := RequireSession(h.DB, r); err != nil {

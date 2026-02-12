@@ -55,7 +55,8 @@ CREATE TABLE IF NOT EXISTS users (
     token_hash      TEXT NULL,
     ativo           BOOLEAN NOT NULL DEFAULT TRUE,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    useremail       TEXT NOT NULL
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_users_username

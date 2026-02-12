@@ -30,3 +30,8 @@ export function getAuthHeaders() {
     'X-Tenant-ID': tenantId,
   } as HeadersInit;
 }
+
+export async function parseError(res: Response) {
+  const text = await res.text();
+  return text || `Erro HTTP ${res.status}`;
+}

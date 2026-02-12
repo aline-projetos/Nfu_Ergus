@@ -12,6 +12,13 @@ type HealthResponse struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
+// HealthHandler godoc
+// @Summary     Healthcheck da API
+// @Description Retorna status simples da API erGus
+// @Tags        Health
+// @Produce     json
+// @Success     200 {object} HealthResponse
+// @Router      /health [get]
 func HealthHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "método não permitido", http.StatusMethodNotAllowed)

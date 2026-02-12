@@ -43,6 +43,10 @@ import TaxGroups from "./pages/tax/TaxGroup";
 import NewTaxGroup from "./pages/tax/NewTaxGroup";
 import EditTaxGroup from "./pages/tax/EditTaxGroup";
 
+import Ncm from "./pages/tax/Ncm";
+import NewNcm from "./pages/tax/NewNcm";
+import EditNcm from "./pages/tax/EditNcm";
+
 const App = () => {
   return (
     <Routes>
@@ -118,13 +122,17 @@ const App = () => {
             element={<EditManufacturer />}
           />
 
-          <Route path="/fiscal" element={<PlaceholderPage />} />
           <Route path="/fiscal/tributacao/grupos" element={<TaxGroups />} />
           <Route path="/fiscal/tributacao/grupos/novo" element={<NewTaxGroup />} />
           <Route path="/fiscal/tributacao/grupos/:id/editar" element={<EditTaxGroup />} />
           
-          <Route path="/fiscal/ncm" element={<PlaceholderPage />} />
+          <Route path="/fiscal/ncm" element={<Ncm />} />
+          <Route path="/fiscal/ncm/novo" element={<NewNcm />} />
+          <Route path="/fiscal/ncm/:id/editar" element={<EditNcm />} />
+
+
           <Route path="/fiscal/cest" element={<PlaceholderPage />} />
+          <Route path="/fiscal/cfop" element={<PlaceholderPage />} />
 
           <Route path="/vendas" element={<PlaceholderPage />} />
           <Route path="/relatorios" element={<PlaceholderPage />} />

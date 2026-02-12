@@ -43,22 +43,6 @@ type TaxGroupInput struct {
 	Active       *bool  `json:"active"`
 }
 
-// NCM (lookup)
-type NCM struct {
-	ID          string  `json:"id"`
-	Code        string  `json:"code"`
-	Description string  `json:"description"`
-	ExVersion   *string `json:"exVersion"`
-}
-
-// CEST (lookup)
-type CEST struct {
-	ID          string  `json:"id"`
-	Code        string  `json:"code"`
-	Description string  `json:"description"`
-	NCMCode     *string `json:"ncmCode"`
-}
-
 // -----------------------------------------------------------------------------
 // HANDLER
 // -----------------------------------------------------------------------------
@@ -160,6 +144,21 @@ func (h *TaxHandler) handleTaxGroupByID(w http.ResponseWriter, r *http.Request) 
 //   - GET /tax-groups?page=1&page_size=50
 // -----------------------------------------------------------------------------
 
+// ListTaxGroups godoc
+// @Summary     Lista grupos de tributação
+// @Description Lista grupos de tributação do tenant (com paginação e busca por code exato ou name contendo q)
+// @Tags        Tax
+// @Produce     json
+// @Param       Authorization header string true "Bearer <token>"
+// @Param       X-Tenant-ID header string true "Tenant ID"
+// @Param       q query string false "Filtro: code exato OU name contendo (case-insensitive)"
+// @Param       page query int false "Página (default 1)"
+// @Param       page_size query int false "Tamanho da página (default 50, máx 200)"
+// @Success     200 {array} TaxGroup
+// @Failure     400 {string} string "Tenant inválido"
+// @Failure     401 {string} string "Não autenticado"
+// @Failure     500 {string} string "Erro interno"
+// @Router      /tax-groups [get]
 func (h *TaxHandler) ListTaxGroups(w http.ResponseWriter, r *http.Request) {
 	// 1) sessão
 	if _, err := RequireSession(h.DB, r); err != nil {
@@ -282,6 +281,20 @@ func (h *TaxHandler) ListTaxGroups(w http.ResponseWriter, r *http.Request) {
 // POST /tax-groups
 // -----------------------------------------------------------------------------
 
+// CreateTaxGroup godoc
+// @Summary     Cria grupo de tributação
+// @Description Cria um novo grupo de tributação para o tenant, gerando code TXG###
+// @Tags        Tax
+// @Accept      json
+// @Produce     json
+// @Param       Authorization header string true "Bearer <token>"
+// @Param       X-Tenant-ID header string true "Tenant ID"
+// @Param       body body TaxGroupInput true "Dados do grupo (name obrigatório)"
+// @Success     201 {object} TaxGroup
+// @Failure     400 {string} string "Erro de validação / JSON inválido / tenant inválido"
+// @Failure     401 {string} string "Não autenticado"
+// @Failure     500 {string} string "Erro interno"
+// @Router      /tax-groups [post]
 func (h *TaxHandler) CreateTaxGroup(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
@@ -388,6 +401,20 @@ func (h *TaxHandler) CreateTaxGroup(w http.ResponseWriter, r *http.Request) {
 // GET /tax-groups/{id}
 // -----------------------------------------------------------------------------
 
+// GetTaxGroupByID godoc
+// @Summary     Busca grupo de tributação por ID
+// @Description Retorna um grupo de tributação específico pelo ID dentro do tenant
+// @Tags        Tax
+// @Produce     json
+// @Param       Authorization header string true "Bearer <token>"
+// @Param       X-Tenant-ID header string true "Tenant ID"
+// @Param       id path string true "ID do grupo de tributação"
+// @Success     200 {object} TaxGroup
+// @Failure     400 {string} string "Tenant inválido"
+// @Failure     401 {string} string "Não autenticado"
+// @Failure     404 {string} string "Grupo de tributação não encontrado"
+// @Failure     500 {string} string "Erro interno"
+// @Router      /tax-groups/{id} [get]
 func (h *TaxHandler) GetTaxGroupByID(w http.ResponseWriter, r *http.Request, id string) {
 	if _, err := RequireSession(h.DB, r); err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
@@ -449,6 +476,22 @@ func (h *TaxHandler) GetTaxGroupByID(w http.ResponseWriter, r *http.Request, id 
 // PUT /tax-groups/{id}
 // -----------------------------------------------------------------------------
 
+// UpdateTaxGroup godoc
+// @Summary     Atualiza grupo de tributação
+// @Description Atualiza um grupo de tributação existente pelo ID dentro do tenant
+// @Tags        Tax
+// @Accept      json
+// @Produce     json
+// @Param       Authorization header string true "Bearer <token>"
+// @Param       X-Tenant-ID header string true "Tenant ID"
+// @Param       id path string true "ID do grupo de tributação"
+// @Param       body body TaxGroupInput true "Dados para atualização (name obrigatório)"
+// @Success     200 {object} TaxGroup
+// @Failure     400 {string} string "Erro de validação / JSON inválido / tenant inválido"
+// @Failure     401 {string} string "Não autenticado"
+// @Failure     404 {string} string "Grupo de tributação não encontrado"
+// @Failure     500 {string} string "Erro interno"
+// @Router      /tax-groups/{id} [put]
 func (h *TaxHandler) UpdateTaxGroup(w http.ResponseWriter, r *http.Request, id string) {
 	defer r.Body.Close()
 
@@ -537,6 +580,19 @@ func (h *TaxHandler) UpdateTaxGroup(w http.ResponseWriter, r *http.Request, id s
 // DELETE /tax-groups/{id}
 // -----------------------------------------------------------------------------
 
+// DeleteTaxGroup godoc
+// @Summary     Exclui grupo de tributação
+// @Description Remove um grupo de tributação pelo ID dentro do tenant
+// @Tags        Tax
+// @Param       Authorization header string true "Bearer <token>"
+// @Param       X-Tenant-ID header string true "Tenant ID"
+// @Param       id path string true "ID do grupo de tributação"
+// @Success     204 {string} string "Sem conteúdo"
+// @Failure     400 {string} string "Tenant inválido"
+// @Failure     401 {string} string "Não autenticado"
+// @Failure     404 {string} string "Grupo de tributação não encontrado"
+// @Failure     500 {string} string "Erro interno"
+// @Router      /tax-groups/{id} [delete]
 func (h *TaxHandler) DeleteTaxGroup(w http.ResponseWriter, r *http.Request, id string) {
 	if _, err := RequireSession(h.DB, r); err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
@@ -572,6 +628,17 @@ func (h *TaxHandler) DeleteTaxGroup(w http.ResponseWriter, r *http.Request, id s
 // GET /lookups/ncm?q=...
 // -----------------------------------------------------------------------------
 
+// SearchNCM godoc
+// @Summary     Busca NCM (lookup)
+// @Description Busca NCM por code ou description (mínimo 3 caracteres). Retorna até 50 itens.
+// @Tags        Tax Lookups
+// @Produce     json
+// @Param       Authorization header string true "Bearer <token>"
+// @Param       q query string true "Texto para busca (mínimo 3 caracteres)"
+// @Success     200 {array} NCM
+// @Failure     401 {string} string "Não autenticado"
+// @Failure     500 {string} string "Erro interno"
+// @Router      /lookups/ncm [get]
 func (h *TaxHandler) handleSearchNCM(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "método não permitido", http.StatusMethodNotAllowed)
@@ -635,6 +702,17 @@ func (h *TaxHandler) handleSearchNCM(w http.ResponseWriter, r *http.Request) {
 // GET /lookups/cest?q=...
 // -----------------------------------------------------------------------------
 
+// SearchCEST godoc
+// @Summary     Busca CEST (lookup)
+// @Description Busca CEST por code ou description (mínimo 3 caracteres). Retorna até 50 itens.
+// @Tags        Tax Lookups
+// @Produce     json
+// @Param       Authorization header string true "Bearer <token>"
+// @Param       q query string true "Texto para busca (mínimo 3 caracteres)"
+// @Success     200 {array} CEST
+// @Failure     401 {string} string "Não autenticado"
+// @Failure     500 {string} string "Erro interno"
+// @Router      /lookups/cest [get]
 func (h *TaxHandler) handleSearchCEST(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "método não permitido", http.StatusMethodNotAllowed)

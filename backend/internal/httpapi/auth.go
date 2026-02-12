@@ -25,17 +25,17 @@ func (h *AuthHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/auth/login", h.Login)
 }
 
-type loginRequest struct {
+type LoginRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
 }
 
-type loginResponse struct {
+type LoginResponse struct {
 	Token string        `json:"token"`
-	User  loginUserInfo `json:"user"`
+	User  LoginUserInfo `json:"user"`
 }
 
-type loginUserInfo struct {
+type LoginUserInfo struct {
 	ID           string `json:"id"`
 	Email        string `json:"email"`
 	Name         string `json:"name"`
@@ -46,7 +46,19 @@ type loginUserInfo struct {
 
 const sessionDuration = 8 * time.Hour
 
-// POST /auth/login
+// Login godoc
+// @Summary     Login do usuário
+// @Description Autentica o usuário e retorna um token de sessão
+// @Tags        Auth
+// @Accept      json
+// @Produce     json
+// @Param       body body LoginRequest true "Credenciais de login"
+// @Success     200 {object} LoginResponse
+// @Failure     400 {string} string "JSON inválido ou campos obrigatórios"
+// @Failure     401 {string} string "Usuário ou senha inválidos"
+// @Failure     405 {string} string "Método não permitido"
+// @Failure     500 {string} string "Erro interno ao autenticar"
+// @Router      /auth/login [post]
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "método não permitido", http.StatusMethodNotAllowed)
@@ -55,7 +67,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	defer r.Body.Close()
 
-	var req loginRequest
+	var req LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "JSON inválido", http.StatusBadRequest)
 		return
@@ -159,9 +171,9 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := loginResponse{
+	resp := LoginResponse{
 		Token: sessionToken,
-		User: loginUserInfo{
+		User: LoginUserInfo{
 			ID:           id,
 			Email:        dbEmail.String,
 			Name:         username,

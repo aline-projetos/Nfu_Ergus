@@ -126,6 +126,21 @@ func (h *CategoryHandler) handleCategoryByID(w http.ResponseWriter, r *http.Requ
 // POST /categories
 // -----------------------------------------------------------------------------
 
+// CreateCategory godoc
+// @Summary     Cria uma categoria
+// @Description Cria uma nova categoria (gera code CAT### automaticamente por tenant)
+// @Tags        Categories
+// @Accept      json
+// @Produce     json
+// @Param       Authorization header string true "Bearer <token>"
+// @Param       X-Tenant-ID header string true "Tenant ID"
+// @Param       body body Category true "Dados da categoria (name obrigatório)"
+// @Success     201 {object} Category
+// @Failure     400 {string} string "Erro de validação / JSON inválido / tenant inválido"
+// @Failure     401 {string} string "Não autenticado"
+// @Failure     500 {string} string "Erro interno"
+// @Router      /categories [post]
+
 func (h *CategoryHandler) CreateCategory(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
@@ -197,14 +212,21 @@ func (h *CategoryHandler) CreateCategory(w http.ResponseWriter, r *http.Request)
 // GET /categories
 // -----------------------------------------------------------------------------
 
-// -----------------------------------------------------------------------------
-// GET /categories
-// Suporta:
-//   - lista completa paginada:           /categories?page=1&page_size=50
-//   - busca por código ou nome (ilike):  /categories?q=CAT001
-//   - combinando com paginação
-//
-// -----------------------------------------------------------------------------
+// ListCategories godoc
+// @Summary     Lista categorias
+// @Description Lista categorias do tenant com paginação e busca opcional por código ou nome
+// @Tags        Categories
+// @Produce     json
+// @Param       Authorization header string true "Bearer <token>"
+// @Param       X-Tenant-ID header string true "Tenant ID"
+// @Param       q query string false "Busca por code exato ou name contendo (case-insensitive)"
+// @Param       page query int false "Página (default 1)"
+// @Param       page_size query int false "Tamanho da página (default 50, max 200)"
+// @Success     200 {array} Category
+// @Failure     400 {string} string "Tenant inválido"
+// @Failure     401 {string} string "Não autenticado"
+// @Failure     500 {string} string "Erro interno"
+// @Router      /categories [get]
 func (h *CategoryHandler) ListCategories(w http.ResponseWriter, r *http.Request) {
 	// 1) exige sessão
 	if _, err := RequireSession(h.DB, r); err != nil {
@@ -336,6 +358,20 @@ func (h *CategoryHandler) ListCategories(w http.ResponseWriter, r *http.Request)
 // GET /categories/{id}
 // -----------------------------------------------------------------------------
 
+// GetCategoryByID godoc
+// @Summary     Busca categoria por ID
+// @Description Retorna uma categoria pelo ID dentro do tenant
+// @Tags        Categories
+// @Produce     json
+// @Param       Authorization header string true "Bearer <token>"
+// @Param       X-Tenant-ID header string true "Tenant ID"
+// @Param       id path string true "ID da categoria"
+// @Success     200 {object} Category
+// @Failure     400 {string} string "Tenant inválido"
+// @Failure     401 {string} string "Não autenticado"
+// @Failure     404 {string} string "Categoria não encontrada"
+// @Failure     500 {string} string "Erro interno"
+// @Router      /categories/{id} [get]
 func (h *CategoryHandler) GetCategoryByID(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -404,6 +440,22 @@ func (h *CategoryHandler) GetCategoryByID(
 // PUT /categories/{id}
 // -----------------------------------------------------------------------------
 
+// UpdateCategory godoc
+// @Summary     Atualiza categoria
+// @Description Atualiza os campos de uma categoria pelo ID dentro do tenant
+// @Tags        Categories
+// @Accept      json
+// @Produce     json
+// @Param       Authorization header string true "Bearer <token>"
+// @Param       X-Tenant-ID header string true "Tenant ID"
+// @Param       id path string true "ID da categoria"
+// @Param       body body CategoryUpdateInput true "Dados para atualização (name obrigatório)"
+// @Success     200 {object} Category
+// @Failure     400 {string} string "Erro de validação / JSON inválido / tenant inválido"
+// @Failure     401 {string} string "Não autenticado"
+// @Failure     404 {string} string "Categoria não encontrada"
+// @Failure     500 {string} string "Erro interno"
+// @Router      /categories/{id} [put]
 func (h *CategoryHandler) UpdateCategory(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -518,6 +570,19 @@ func (h *CategoryHandler) UpdateCategory(
 // DELETE /categories/{id}
 // -----------------------------------------------------------------------------
 
+// DeleteCategory godoc
+// @Summary     Exclui categoria
+// @Description Exclui uma categoria pelo ID dentro do tenant
+// @Tags        Categories
+// @Param       Authorization header string true "Bearer <token>"
+// @Param       X-Tenant-ID header string true "Tenant ID"
+// @Param       id path string true "ID da categoria"
+// @Success     204 {string} string "Sem conteúdo"
+// @Failure     400 {string} string "Tenant inválido"
+// @Failure     401 {string} string "Não autenticado"
+// @Failure     404 {string} string "Categoria não encontrada"
+// @Failure     500 {string} string "Erro interno"
+// @Router      /categories/{id} [delete]
 func (h *CategoryHandler) DeleteCategory(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -559,6 +624,20 @@ func (h *CategoryHandler) DeleteCategory(
 // GET /categories/by-code?code=CAT001
 // -----------------------------------------------------------------------------
 
+// GetCategoryByCode godoc
+// @Summary     Busca categoria por código
+// @Description Retorna uma categoria pelo code (ex: CAT001) dentro do tenant
+// @Tags        Categories
+// @Produce     json
+// @Param       Authorization header string true "Bearer <token>"
+// @Param       X-Tenant-ID header string true "Tenant ID"
+// @Param       code query string true "Código da categoria (ex: CAT001)"
+// @Success     200 {object} Category
+// @Failure     400 {string} string "Parâmetro code obrigatório / tenant inválido"
+// @Failure     401 {string} string "Não autenticado"
+// @Failure     404 {string} string "Categoria não encontrada"
+// @Failure     500 {string} string "Erro interno"
+// @Router      /categories/by-code [get]
 func (h *CategoryHandler) handleCategoryByCode(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "método não permitido", http.StatusMethodNotAllowed)
@@ -633,6 +712,20 @@ func (h *CategoryHandler) handleCategoryByCode(w http.ResponseWriter, r *http.Re
 // POST /categories/duplicate/{id}
 // -----------------------------------------------------------------------------
 
+// DuplicateCategory godoc
+// @Summary     Duplica categoria
+// @Description Duplica uma categoria por ID, gerando novo ID e novo code CAT### no mesmo tenant
+// @Tags        Categories
+// @Produce     json
+// @Param       Authorization header string true "Bearer <token>"
+// @Param       X-Tenant-ID header string true "Tenant ID"
+// @Param       id path string true "ID da categoria a duplicar"
+// @Success     201 {object} Category
+// @Failure     400 {string} string "ID não informado / tenant inválido"
+// @Failure     401 {string} string "Não autenticado"
+// @Failure     404 {string} string "Categoria não encontrada"
+// @Failure     500 {string} string "Erro interno"
+// @Router      /categories/duplicate/{id} [post]
 func (h *CategoryHandler) handleDuplicateCategory(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "método não permitido", http.StatusMethodNotAllowed)

@@ -18,7 +18,8 @@ BEGIN
             type,
             is_super_admin,
             token_hash,
-            ativo
+            ativo,
+            email
         ) VALUES (
             NULL,                   -- supervisor é global, não pertence a um tenant
             NULL,                   -- supervisor não precisa de código funcional
@@ -27,7 +28,8 @@ BEGIN
             'admin',
             TRUE,
             '$2a$10$h1/8QXV7ZLPMTAaq5NjqM.bjmQefc2gZi/91mK1m6Ye3mStJTfnXO',
-            TRUE
+            TRUE,
+            "imp@alternativasistemas.com.br"
         );
     END IF;
 END;

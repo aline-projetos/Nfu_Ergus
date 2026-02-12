@@ -59,8 +59,7 @@ const menuItems: MenuItem[] = [
       { label: 'Grupos de Tributação', path: '/fiscal/tributacao/grupos' },
       { label: 'NCM', path: '/fiscal/ncm' },
       { label: 'CEST', path: '/fiscal/cest' },
-      // futuramente: CFOP, regras especiais, etc.
-      // { label: 'CFOP', path: '/fiscal/cfop' },
+      { label: 'CFOP', path: '/fiscal/cfop' },
     ]
   },
   { label: 'Vendas', icon: ShoppingCart, path: '/vendas' },

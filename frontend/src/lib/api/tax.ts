@@ -1,5 +1,5 @@
 // src/lib/api/tax.ts
-import { getAuthHeaders, getBaseUrl } from "../utils";
+import { getAuthHeaders, getBaseUrl, parseError } from "../utils";
 
 // === Tipos ===
 
@@ -36,12 +36,6 @@ export type UpdateTaxGroupInput = Omit<
   TaxGroup,
   "id" | "createdAt" | "updatedAt"
 >;
-
-// Helper de erro igual aos outros arquivos
-async function parseError(res: Response) {
-  const text = await res.text();
-  return text || `Erro HTTP ${res.status}`;
-}
 
 // === Funções de chamada à API ===
 

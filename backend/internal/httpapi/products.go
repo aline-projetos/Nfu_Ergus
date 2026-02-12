@@ -146,6 +146,20 @@ func (h *ProductHandler) handleProductByID(w http.ResponseWriter, r *http.Reques
 // Front manda: { "name": "Produto X" }
 // ============================================================
 
+// CreateProduct godoc
+// @Summary     Cria produto
+// @Description Cria um novo produto para o tenant, gerando code PROD### automaticamente
+// @Tags        Products
+// @Accept      json
+// @Produce     json
+// @Param       Authorization header string true "Bearer <token>"
+// @Param       X-Tenant-ID header string true "Tenant ID"
+// @Param       body body ProductCreateInput true "Dados do produto (name obrigatório)"
+// @Success     201 {object} Product
+// @Failure     400 {string} string "Erro de validação / JSON inválido / tenant inválido"
+// @Failure     401 {string} string "Não autenticado"
+// @Failure     500 {string} string "Erro interno"
+// @Router      /products [post]
 func (h *ProductHandler) CreateProduct(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
@@ -242,6 +256,18 @@ func (h *ProductHandler) CreateProduct(w http.ResponseWriter, r *http.Request) {
 // GET /products
 // ============================================================
 
+// ListProducts godoc
+// @Summary     Lista produtos
+// @Description Retorna todos os produtos do tenant ordenados por nome
+// @Tags        Products
+// @Produce     json
+// @Param       Authorization header string true "Bearer <token>"
+// @Param       X-Tenant-ID header string true "Tenant ID"
+// @Success     200 {array} Product
+// @Failure     400 {string} string "Tenant inválido"
+// @Failure     401 {string} string "Não autenticado"
+// @Failure     500 {string} string "Erro interno"
+// @Router      /products [get]
 func (h *ProductHandler) ListProducts(w http.ResponseWriter, r *http.Request) {
 	// 1) exige sessão
 	if _, err := RequireSession(h.DB, r); err != nil {
@@ -356,6 +382,20 @@ func (h *ProductHandler) ListProducts(w http.ResponseWriter, r *http.Request) {
 // GET /products/{id}
 // ============================================================
 
+// GetProductByID godoc
+// @Summary     Busca produto por ID
+// @Description Retorna um produto específico pelo ID dentro do tenant
+// @Tags        Products
+// @Produce     json
+// @Param       Authorization header string true "Bearer <token>"
+// @Param       X-Tenant-ID header string true "Tenant ID"
+// @Param       id path string true "ID do produto"
+// @Success     200 {object} Product
+// @Failure     400 {string} string "Tenant inválido"
+// @Failure     401 {string} string "Não autenticado"
+// @Failure     404 {string} string "Produto não encontrado"
+// @Failure     500 {string} string "Erro interno"
+// @Router      /products/{id} [get]
 func (h *ProductHandler) GetProductByID(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -459,6 +499,22 @@ func (h *ProductHandler) GetProductByID(
 // Front manda só { "name": "Novo nome" } por enquanto
 // ============================================================
 
+// UpdateProduct godoc
+// @Summary     Atualiza produto
+// @Description Atualiza os dados de um produto pelo ID dentro do tenant
+// @Tags        Products
+// @Accept      json
+// @Produce     json
+// @Param       Authorization header string true "Bearer <token>"
+// @Param       X-Tenant-ID header string true "Tenant ID"
+// @Param       id path string true "ID do produto"
+// @Param       body body ProductUpdateInput true "Dados para atualização (name obrigatório)"
+// @Success     200 {object} Product
+// @Failure     400 {string} string "Erro de validação / JSON inválido / tenant inválido"
+// @Failure     401 {string} string "Não autenticado"
+// @Failure     404 {string} string "Produto não encontrado"
+// @Failure     500 {string} string "Erro interno"
+// @Router      /products/{id} [put]
 func (h *ProductHandler) UpdateProduct(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -561,6 +617,19 @@ func (h *ProductHandler) UpdateProduct(
 // DELETE /products/{id}
 // ============================================================
 
+// DeleteProduct godoc
+// @Summary     Exclui produto
+// @Description Remove um produto pelo ID dentro do tenant
+// @Tags        Products
+// @Param       Authorization header string true "Bearer <token>"
+// @Param       X-Tenant-ID header string true "Tenant ID"
+// @Param       id path string true "ID do produto"
+// @Success     204 {string} string "Sem conteúdo"
+// @Failure     400 {string} string "Tenant inválido"
+// @Failure     401 {string} string "Não autenticado"
+// @Failure     404 {string} string "Produto não encontrado"
+// @Failure     500 {string} string "Erro interno"
+// @Router      /products/{id} [delete]
 func (h *ProductHandler) DeleteProduct(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -603,6 +672,20 @@ func (h *ProductHandler) DeleteProduct(
 // GET /products/by-code?code=PROD001
 // ============================================================
 
+// GetProductByCode godoc
+// @Summary     Busca produto por código
+// @Description Retorna um produto pelo código (ex: PROD001) dentro do tenant
+// @Tags        Products
+// @Produce     json
+// @Param       Authorization header string true "Bearer <token>"
+// @Param       X-Tenant-ID header string true "Tenant ID"
+// @Param       code query string true "Código do produto (ex: PROD001)"
+// @Success     200 {object} Product
+// @Failure     400 {string} string "Parâmetro code obrigatório / tenant inválido"
+// @Failure     401 {string} string "Não autenticado"
+// @Failure     404 {string} string "Produto não encontrado"
+// @Failure     500 {string} string "Erro interno"
+// @Router      /products/by-code [get]
 func (h *ProductHandler) handleProductByCode(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "método não permitido", http.StatusMethodNotAllowed)
@@ -714,6 +797,20 @@ func (h *ProductHandler) handleProductByCode(w http.ResponseWriter, r *http.Requ
 // Duplicação simples, copiando só name e gerando novo code
 // ============================================================
 
+// DuplicateProduct godoc
+// @Summary     Duplica produto
+// @Description Duplica um produto pelo ID, gerando novo ID e novo code PROD###
+// @Tags        Products
+// @Produce     json
+// @Param       Authorization header string true "Bearer <token>"
+// @Param       X-Tenant-ID header string true "Tenant ID"
+// @Param       id path string true "ID do produto a duplicar"
+// @Success     201 {object} Product
+// @Failure     400 {string} string "ID não informado / tenant inválido"
+// @Failure     401 {string} string "Não autenticado"
+// @Failure     404 {string} string "Produto não encontrado"
+// @Failure     500 {string} string "Erro interno"
+// @Router      /products/duplicate/{id} [post]
 func (h *ProductHandler) handleDuplicateProduct(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "método não permitido", http.StatusMethodNotAllowed)
