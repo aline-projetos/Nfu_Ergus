@@ -1,16 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Package, Check, X, CheckCircle2, Info, Search, Plus, Image } from 'lucide-react';
+import { Package, Check, X, CheckCircle2, Info, Search, Plus, Calendar, Image, Grid3X3, ChevronLeft, ChevronRight, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { fiscalOrigins, Promotion } from '@/data/mockProducts';
 import {
   Product,
-  createProduct,
+  createProductWizard,
+  updateProductWizard,
   getProductById,
-  updateProduct,
-  ProductCreateInput,
-  ProductUpdateInput,
+  type ProductWizardCreateInput,
+  type ProductWizardUpdateInput,
 } from '@/lib/api/products';
+
 import {
   searchCategories,
   searchManufacturers,
@@ -25,87 +26,101 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { VariationModel1Modal } from './VariationModal';
+import { VariationImageModal, type VariationImage } from './VariationImageModal';
+import { VariationDetailsModal, type VariationDetails } from './VariationDetailsModal';
+import { Badge } from '@/components/ui/badge';
+import { UNIT_OPTIONS } from './ProductUtils';
 
 interface FormData {
-  // Step 1: Dados Principais
-  code: string;
+  // ====== Produto (pai) ======
+  code: string; // só leitura no edit
   name: string;
-  stock: string;
-  reference: string;
-  categoryCode: string;
-  categoryName: string;
-  costPrice: string;
-  salePrice: string;
+
+  categoryId: string;
+  categoryName: string; // campo de busca/visual
+  supplierId: string;
+  supplierName: string; // campo de busca/visual
+  manufacturerId: string;
+  manufacturerName: string; // campo de busca/visual
+
+  taxGroupId: string;
+  ncmId: string;
+  cestId: string;
+  fiscalOrigin: string;
+
+  videoLink: string;
+  otherLinks: string;
+
+  // ====== Variação DEFAULT (Step 1) ======
   sku: string;
   ean: string;
+
+  costPrice: string; // cost_price
+  salePrice: string; // price
+
   weight: string;
   length: string;
   height: string;
   width: string;
-  ncm: string;
-  // Step 2: Configurações
+
+  // ====== UI (não vai pro wizard por enquanto) ======
+  reference: string;
+  stock: string;
+
+  // Step 2 UI (não vai pro wizard por enquanto)
   unit: string;
   shortDescription: string;
   longDescription: string;
   metaTitle: string;
   metaTag: string;
   metaDescription: string;
-  // Step 3: Regra Comercial
+
+  // Step 3 UI (não vai pro wizard por enquanto)
   promotionCode: string;
   promotionName: string;
   promotionStart: string;
   promotionEnd: string;
-  // Step 4: Tributação
-  taxGroup: string;
-  ncmCode: string;
+
+  // Step 4 UI (não vai pro wizard por enquanto)
   ncmDescription: string;
-  cestCode: string;
   cestDescription: string;
   pisCode: string;
   pisDescription: string;
   cofinsCode: string;
   cofinsDescription: string;
-  fiscalOrigin: string;
-  // Step 5: Variações
-  variationType: string;
-  variationTypeCode: string;
-  variationSku: string;
-  variationEan: string;
-  variationWeight: string;
-  variationLength: string;
-  variationHeight: string;
-  variationWidth: string;
-  variationShortDesc: string;
-  variationLongDesc: string;
-  variationMetaTitle: string;
-  variationMetaTag: string;
-  variationMetaDesc: string;
-  variationImageLink: string;
-  videoLink: string;
-  otherLinks: string;
-  categoryId: string;
-  supplierId: string;
-  supplierName: string;
-  manufacturerId: string;
-  manufacturerName: string;
 }
 
 const initialFormData: FormData = {
+  // pai
   code: '',
   name: '',
-  stock: '',
-  reference: '',
-  categoryCode: '',
+  categoryId: '',
   categoryName: '',
-  costPrice: '',
-  salePrice: '',
+  supplierId: '',
+  supplierName: '',
+  manufacturerId: '',
+  manufacturerName: '',
+  taxGroupId: '',
+  ncmId: '',
+  cestId: '',
+  fiscalOrigin: '',
+  videoLink: '',
+  otherLinks: '',
+
+  // default variation
   sku: '',
   ean: '',
+  costPrice: '',
+  salePrice: '',
   weight: '',
   length: '',
   height: '',
   width: '',
-  ncm: '',
+
+  // UI
+  reference: '',
+  stock: '',
   unit: '',
   shortDescription: '',
   longDescription: '',
@@ -116,37 +131,12 @@ const initialFormData: FormData = {
   promotionName: '',
   promotionStart: '',
   promotionEnd: '',
-  taxGroup: '',
-  ncmCode: '',
   ncmDescription: '',
-  cestCode: '',
   cestDescription: '',
   pisCode: '',
   pisDescription: '',
   cofinsCode: '',
   cofinsDescription: '',
-  fiscalOrigin: '',
-  variationType: '',
-  variationTypeCode: '',
-  variationSku: '',
-  variationEan: '',
-  variationWeight: '',
-  variationLength: '',
-  variationHeight: '',
-  variationWidth: '',
-  variationShortDesc: '',
-  variationLongDesc: '',
-  variationMetaTitle: '',
-  variationMetaTag: '',
-  variationMetaDesc: '',
-  variationImageLink: '',
-  videoLink: '',
-  otherLinks: '',
-  categoryId: '',
-  supplierId: '',
-  supplierName: '',
-  manufacturerId: '',
-  manufacturerName: '',
 };
 
 const steps = [
@@ -207,11 +197,22 @@ export function ProductWizard() {
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
   const [promotions, setPromotions] = useState<Promotion[]>([]);
-  const [variationCards] = useState<VariationCard[]>([
-    { id: '1', description: 'Variação 1', position: '1', url: '/variacao-1' },
-    { id: '2', description: 'Variação 2', position: '2', url: '/variacao-2' },
-    { id: '3', description: 'Variação 3', position: '3', url: '/variacao-3' },
-  ]);
+  const [model1Open, setModel1Open] = useState(false);
+
+  const [savedVariations, setSavedVariations] = useState<Array<{
+    combination: string;
+    sku: string;
+    ean: string;
+    price: string;
+    stock: string;
+    active?: boolean; 
+    images?: VariationImage[];
+    currentImageIndex?: number;
+    details?: VariationDetails;
+  }>>([]);
+
+  const [imageModalOpen, setImageModalOpen] = useState(false);
+  const [imageModalCombination, setImageModalCombination] = useState('');
   const [isLoadingProduct, setIsLoadingProduct] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -227,89 +228,226 @@ export function ProductWizard() {
   const [manufacturerFilter, setManufacturerFilter] = useState('');
   const [supplierFilter, setSupplierFilter] = useState('');
 
+    // Imagens do PRODUTO (Step 2)
+  const [productImages, setProductImages] = useState<VariationImage[]>([]);
+  const [productImageIndex, setProductImageIndex] = useState(0);
+  const [productImageModalOpen, setProductImageModalOpen] = useState(false);
+
+  function getOrderedImages(images: VariationImage[]): VariationImage[] {
+    const primary = images.filter((i) => i.isPrimary);
+    const rest = images
+      .filter((i) => !i.isPrimary)
+      .sort((a, b) => (a.position ?? 999) - (b.position ?? 999));
+    return [...primary, ...rest];
+  }
+
+  const orderedProductImages = useMemo(
+    () => getOrderedImages(productImages || []),
+    [productImages]
+  );
+
+  const currentProductImage = orderedProductImages[productImageIndex] || null;
+  const productHasImages = orderedProductImages.length > 0;
+  const productHasMultiple = orderedProductImages.length > 1;
+
+  const openProductImageModal = () => setProductImageModalOpen(true);
+
+  const saveProductImages = (images: VariationImage[]) => {
+    setProductImages(images);
+    setProductImageIndex(0);
+  };
+
+const navigateProductImage = (direction: number) => {
+  setProductImageIndex(prev => {
+    const list = orderedProductImages;
+    if (list.length <= 1) return 0;
+    let next = prev + direction;
+    if (next < 0) next = list.length - 1;
+    if (next >= list.length) next = 0;
+    return next;
+  });
+};
+
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+  const [detailsModalCombination, setDetailsModalCombination] = useState('');
+
+  const openDetailsModal = (combination: string) => {
+    setDetailsModalCombination(combination);
+    setDetailsModalOpen(true);
+  };
+  const saveDetailsForVariation = (combination: string, details: VariationDetails) => {
+    setSavedVariations(prev =>
+      prev.map(v => (v.combination === combination ? { ...v, details } : v))
+    );
+  };
+  const hasDetails = (details?: VariationDetails): boolean => {
+    if (!details) return false;
+    return Object.values(details).some(v => v && v.trim() !== '');
+  };
+
+  const openImageModal = (combination: string) => {
+    setImageModalCombination(combination);
+    setImageModalOpen(true);
+  };
+  const saveImagesForVariation = (combination: string, images: VariationImage[]) => {
+    setSavedVariations(prev =>
+      prev.map(v => (v.combination === combination ? { ...v, images, currentImageIndex: 0 } : v))
+    );
+  };
+  const navigateImage = (combination: string, direction: number) => {
+    setSavedVariations(prev =>
+      prev.map(v => {
+        if (v.combination !== combination) return v;
+        const ordered = getOrderedImages(v.images || []);
+        if (ordered.length <= 1) return v;
+        const currentIdx = v.currentImageIndex ?? 0;
+        let next = currentIdx + direction;
+        if (next < 0) next = ordered.length - 1;
+        if (next >= ordered.length) next = 0;
+        return { ...v, currentImageIndex: next };
+      })
+    );
+  };
+
+  const toggleSavedVariationActive = (combination: string) => {
+    setSavedVariations(prev =>
+      prev.map(v => v.combination === combination ? { ...v, active: !(v.active ?? true) } : v)
+    );
+  };
+
+  const deleteSavedVariation = (combination: string) => {
+    setSavedVariations(prev => prev.filter(v => v.combination !== combination));
+    toast.success('Variação removida');
+  };
+
+
   // ========== helpers de mapeamento para o backend ==========
 
   const mapProductToFormData = (product: Product): FormData => {
     const p = product as any;
+    const variations = Array.isArray(p.variations) ? p.variations : [];
+    const def = variations.find((v: any) => v.is_default) || variations[0] || null;
 
     return {
       ...initialFormData,
+
+      // pai
       code: p.code ?? '',
       name: p.name ?? '',
-      reference: p.reference ?? '',
-      categoryCode: p.categoryCode ?? '',
-      categoryName: p.categoryName ?? '',
-      salePrice: p.price != null ? String(p.price) : '',
-      shortDescription: p.description ?? '',
-      longDescription: p.description ?? '',
-      metaTitle: p.metaTitle ?? '',
-      metaTag: p.metaTag ?? '',
-      metaDescription: p.metaDescription ?? '',
-      stock: '',
-      costPrice: '',
-      sku: '',
-      ean: '',
-      weight: '',
-      length: '',
-      height: '',
-      width: '',
-      ncm: '',
-      unit: '',
-      promotionCode: '',
-      promotionName: '',
-      promotionStart: '',
-      promotionEnd: '',
-      taxGroup: '',
-      ncmCode: '',
-      ncmDescription: '',
-      cestCode: '',
-      cestDescription: '',
-      pisCode: '',
-      pisDescription: '',
-      cofinsCode: '',
-      cofinsDescription: '',
-      fiscalOrigin: '',
-      variationType: '',
-      variationTypeCode: '',
-      variationSku: '',
-      variationEan: '',
-      variationWeight: '',
-      variationLength: '',
-      variationHeight: '',
-      variationWidth: '',
-      variationShortDesc: '',
-      variationLongDesc: '',
-      variationMetaTitle: '',
-      variationMetaTag: '',
-      variationMetaDesc: '',
-      variationImageLink: '',
-      videoLink: '',
-      otherLinks: '',
       categoryId: p.category_id ?? '',
       supplierId: p.supplier_id ?? '',
-      supplierName: p.supplier_name ?? '',
       manufacturerId: p.manufacturer_id ?? '',
-      manufacturerName: p.manufacturer_name ?? '',
+      taxGroupId: p.tax_group_id ?? '',
+      ncmId: p.ncm_id ?? '',
+      cestId: p.cest_id ?? '',
+      fiscalOrigin: p.fiscal_origin ?? '',
+      videoLink: p.video_link ?? '',
+      otherLinks: p.other_links ?? '',
+
+      // nomes (se você ainda não tem no backend, mantém vazio)
+      categoryName: '',
+      supplierName: '',
+      manufacturerName: '',
+
+      // default variation
+      sku: def?.sku ?? '',
+      ean: def?.ean ?? '',
+      salePrice: def?.price != null ? String(def.price) : '',
+      costPrice: def?.cost_price != null ? String(def.cost_price) : '',
+      weight: def?.weight != null ? String(def.weight) : '',
+      length: def?.length != null ? String(def.length) : '',
+      height: def?.height != null ? String(def.height) : '',
+      width: def?.width != null ? String(def.width) : '',
     };
   };
 
-  const buildCreatePayload = (data: FormData): ProductCreateInput => {
-    return {
-      name: data.name.trim(),
-      category_id: data.categoryId || null,
-      supplier_id: data.supplierId || null,
-      manufacturer_id: data.manufacturerId || null,
-    };
+  // ====== payload wizard (novo modelo) ======
+  const buildCreatePayload = (data: FormData): ProductWizardCreateInput => {
+  const base = {
+    name: data.name.trim(),
+    category_id: data.categoryId || null,
+    supplier_id: data.supplierId || null,
+    manufacturer_id: data.manufacturerId || null,
+
+    tax_group_id: data.taxGroupId || null,
+    ncm_id: data.ncmId || null,
+    cest_id: data.cestId || null,
+    fiscal_origin: data.fiscalOrigin || null,
+
+    video_link: data.videoLink || null,
+    other_links: data.otherLinks || null,
   };
 
-  const buildUpdatePayload = (data: FormData): ProductUpdateInput => {
-    return {
-      name: data.name.trim(),
-      category_id: data.categoryId || null,
-      supplier_id: data.supplierId || null,
-      manufacturer_id: data.manufacturerId || null,
-    };
+  // ✅ DEFAULT (produto simples)
+  const defaultVariation = {
+    sku: data.sku.trim(),
+    ean: data.ean?.trim() ? data.ean.trim() : null,
+
+    price: data.salePrice || null,
+    cost_price: data.costPrice || null,
+
+    weight: data.weight || null,
+    length: data.length || null,
+    height: data.height || null,
+    width: data.width || null,
+
+    active: true,
+    is_default: true,
+
+    images: productImages || [],
+
+    details: null,
+    combination: "DEFAULT", // ✅ importante
   };
+
+  // ✅ SEM grade -> só a default
+  if (!savedVariations || savedVariations.length === 0) {
+    return {
+      ...base,
+      variations: [defaultVariation],
+    };
+  }
+
+  // ✅ COM grade -> NÃO envia DEFAULT
+  const mapped = savedVariations.map((v) => ({
+    sku: v.sku?.trim() || '',
+    ean: v.ean?.trim() ? v.ean.trim() : null,
+
+    price: v.price || null,
+    cost_price: null,
+
+    // herda dimensões do pai (se quiser)
+    weight: data.weight || null,
+    length: data.length || null,
+    height: data.height || null,
+    width: data.width || null,
+
+    active: v.active ?? true,
+
+    // ✅ aqui pode vir do modal (se você já salva isso), senão a gente garante abaixo
+    is_default: (v as any).is_default ?? false,
+
+    combination: v.combination || null,
+    details: (v.details || null) as any,
+    images: v.images || [],
+  }));
+
+  // ✅ garante 1 default nas variações reais
+  const hasAnyDefault = mapped.some(v => v.is_default === true);
+  if (!hasAnyDefault && mapped.length > 0) {
+    mapped[0].is_default = true;
+  }
+
+  return {
+    ...base,
+    variations: mapped,
+  };
+};
+
+const buildUpdatePayload = (data: FormData): ProductWizardUpdateInput => {
+  return buildCreatePayload(data) as unknown as ProductWizardUpdateInput;
+};
+
 
   // ========== efeitos: carregar produto ao editar ==========
 
@@ -320,6 +458,31 @@ export function ProductWizard() {
         setIsLoadingProduct(true);
         const product = await getProductById(id);
         setFormData(mapProductToFormData(product));
+        const variations = (product as any).variations || [];
+        const def = variations.find((v: any) => v.is_default) || variations[0];
+        setProductImages((def?.images || []) as VariationImage[]);
+        setProductImageIndex(0);
+
+        // se tiver variações além da default, popula a grade do step 5
+        const nonDefault = variations.filter((v: any) => !v.is_default);
+        if (nonDefault.length > 0) {
+          setSavedVariations(
+            nonDefault.map((v: any) => ({
+              combination: v.combination || '',
+              sku: v.sku || '',
+              ean: v.ean || '',
+              price: v.price != null ? String(v.price) : '',
+              stock: '', // estoque não usa
+              active: v.active ?? true,
+              images: (v.images || []) as VariationImage[],
+              currentImageIndex: 0,
+              details: (v.details || {}) as VariationDetails,
+            }))
+          );
+        } else {
+          setSavedVariations([]);
+        }
+
       } catch (error) {
         console.error('Erro ao carregar produto:', error);
 
@@ -358,6 +521,10 @@ export function ProductWizard() {
       newErrors.name = 'Nome é obrigatório';
     }
 
+    if (!formData.sku.trim()) {
+      newErrors.sku = 'Sku é obrigatório';
+    }
+
     setErrors(newErrors);
 
     if (Object.keys(newErrors).length > 0) {
@@ -377,13 +544,13 @@ export function ProductWizard() {
     try {
       setIsSaving(true);
 
+      const payload = isEditing ? buildUpdatePayload(formData) : buildCreatePayload(formData);
+
       if (isEditing && id) {
-        const payload = buildUpdatePayload(formData);
-        await updateProduct(id, payload);
+        await updateProductWizard(id, payload);
         toast.success('Produto atualizado com sucesso');
       } else {
-        const payload = buildCreatePayload(formData);
-        await createProduct(payload);
+        await createProductWizard(payload);
         toast.success('Produto cadastrado com sucesso');
       }
 
@@ -391,15 +558,13 @@ export function ProductWizard() {
     } catch (error) {
       console.error('Erro ao salvar produto:', error);
       const message =
-          error instanceof Error
-            ? error.message
-            : 'Erro inesperado ao carregar dados';
-
-        toast.error(`Não foi possível carregar dados: ${message}`);
+        error instanceof Error ? error.message : 'Erro inesperado ao salvar';
+      toast.error(`Não foi possível salvar: ${message}`);
     } finally {
       setIsSaving(false);
     }
   };
+
 
   // ========== navegação do wizard ==========
 
@@ -509,7 +674,7 @@ export function ProductWizard() {
       ...prev,
       categoryId: cat.id,
       categoryCode: cat.code,
-      categoryName: cat.name,
+      categoryName: `${cat.code} - ${cat.name}`,
     }));
     setIsCategoryModalOpen(false);
   };
@@ -620,7 +785,6 @@ export function ProductWizard() {
     }));
     setIsSupplierModalOpen(false);
   };
-
   
   return (
     <div className="animate-fade-in max-w-6xl mx-auto">
@@ -740,14 +904,14 @@ export function ProductWizard() {
 
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-2">
-                      Código SKU
+                      Código SKU <span className="text-destructive">*</span>
                     </label>
                     <input
                       type="text"
                       value={formData.sku}
                       onChange={(e) => updateField('sku', e.target.value)}
                       placeholder="SKU001"
-                      className="input-field"
+                      className={`input-field ${errors.sku ? 'error' : ''}`}
                     />
                   </div>
 
@@ -776,7 +940,8 @@ export function ProductWizard() {
                       value={formData.stock}
                       onChange={(e) => handleNumericInput('stock', e.target.value)}
                       placeholder="0"
-                      className="input-field"
+                      disabled
+                      className="input-field opacity-70 cursor-not-allowed"
                     />
                   </div>
 
@@ -914,16 +1079,94 @@ export function ProductWizard() {
                   Configurações
                 </h2>
 
+                {/* Imagens do Produto */}
+                <div className="p-4 rounded-lg border border-border bg-muted/30 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-foreground">Imagens do Produto</h3>
+
+                    <button
+                      type="button"
+                      onClick={openProductImageModal}
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-muted-foreground hover:bg-muted transition-colors text-sm"
+                    >
+                      <Image className="w-4 h-4" />
+                      {productHasImages ? 'Editar imagens' : 'Selecionar imagens'}
+                    </button>
+                  </div>
+
+                  {!productHasImages ? (
+                    <div className="flex items-center justify-between rounded-lg border border-dashed border-border bg-background/40 px-4 py-3">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Image className="w-4 h-4" />
+                        Nenhuma imagem selecionada
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        Use o botão “Selecionar imagens”
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      {productHasMultiple && (
+                        <button
+                          type="button"
+                          onClick={() => navigateProductImage(-1)}
+                          className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground"
+                          title="Imagem anterior"
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                        </button>
+                      )}
+
+                      <div className="relative">
+                        <img
+                          src={currentProductImage!.url}
+                          alt="Imagem do produto"
+                          className="w-20 h-20 rounded-lg object-cover border border-border"
+                          onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }}
+                        />
+                        {currentProductImage?.isPrimary && (
+                          <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[10px] px-1.5 rounded-full leading-tight">
+                            ★
+                          </span>
+                        )}
+                      </div>
+
+                      {productHasMultiple && (
+                        <button
+                          type="button"
+                          onClick={() => navigateProductImage(1)}
+                          className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground"
+                          title="Próxima imagem"
+                        >
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                      )}
+
+                      <div className="text-xs text-muted-foreground">
+                        {productImageIndex + 1} / {orderedProductImages.length}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-2">
                       Unidade
                     </label>
-                    <SearchInput
-                      value={formData.unit}
-                      onChange={(v) => updateField('unit', v)}
-                      placeholder="Buscar unidade"
-                    />
+                    <select
+                    value={formData.unit}
+                    onChange={(e) => updateField('unit', e.target.value)}
+                    className="input-field"
+                  >
+                    <option value="">Selecione a unidade</option>
+                    {UNIT_OPTIONS.map((u) => (
+                      <option key={u.value} value={u.value}>
+                        {u.label}
+                      </option>
+                    ))}
+                  </select>
+
                   </div>
 
                   <div>
@@ -1119,8 +1362,8 @@ export function ProductWizard() {
                     Grupo de Tributação
                   </label>
                   <SearchInput
-                    value={formData.taxGroup}
-                    onChange={(v) => updateField('taxGroup', v)}
+                    value={formData.taxGroupId}
+                    onChange={(v) => updateField('taxGroupId', v)}
                     placeholder="Buscar grupo de tributação"
                   />
                 </div>
@@ -1131,8 +1374,8 @@ export function ProductWizard() {
                       Código NCM
                     </label>
                     <SearchInput
-                      value={formData.ncmCode}
-                      onChange={(v) => updateField('ncmCode', v)}
+                      value={formData.ncmId}
+                      onChange={(v) => updateField('ncmId', v)}
                       placeholder="Buscar NCM"
                     />
                   </div>
@@ -1159,8 +1402,8 @@ export function ProductWizard() {
                       Código CEST
                     </label>
                     <SearchInput
-                      value={formData.cestCode}
-                      onChange={(v) => updateField('cestCode', v)}
+                      value={formData.cestId}
+                      onChange={(v) => updateField('cestId', v)}
                       placeholder="Buscar CEST"
                     />
                   </div>
@@ -1262,281 +1505,219 @@ export function ProductWizard() {
             {/* Step 5: Variações */}
             {currentStep === 5 && (
               <div className="animate-slide-in-right space-y-6">
-                <h2 className="text-lg font-medium text-foreground mb-6">
-                  Variações
-                </h2>
-
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">
-                      Código Tipo
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.variationTypeCode}
-                      onChange={(e) =>
-                        updateField('variationTypeCode', e.target.value)
-                      }
-                      placeholder="Código"
-                      className="input-field"
-                    />
-                  </div>
-
-                  <div className="col-span-2">
-                    <label className="block text-sm font-medium text-foreground mb-2">
-                      Tipo de Variação
-                    </label>
-                    <SearchInput
-                      value={formData.variationType}
-                      onChange={(v) => updateField('variationType', v)}
-                      placeholder="Buscar tipo de variação"
-                    />
-                  </div>
+                <h2 className="text-lg font-medium text-foreground mb-2">Variações</h2>
+                
+                {/* Model Buttons */}
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setModel1Open(true)}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors font-medium text-sm"
+                  >
+                    <Grid3X3 className="w-4 h-4" />
+                    Adicionar Variações
+                  </button>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">
-                      Código SKU
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.variationSku}
-                      onChange={(e) =>
-                        updateField('variationSku', e.target.value)
-                      }
-                      placeholder="SKU da variação"
-                      className="input-field"
-                    />
-                  </div>
+                {/* Saved Variations Summary */}
+                {savedVariations.length > 0 && (
+                  <div className="p-4 rounded-lg border border-border bg-muted/30 space-y-3">
+                    <h3 className="text-sm font-semibold text-foreground">Variações Criadas ({savedVariations.length})</h3>
+                    <div className="border border-border rounded-lg overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="bg-muted/50 border-b border-border">
+                            <th className="text-left px-4 py-2 font-medium text-muted-foreground">Ativo</th>
+                            <th className="text-left px-4 py-2 font-medium text-muted-foreground">Combinação</th>
+                            <th className="text-left px-4 py-2 font-medium text-muted-foreground">Imagem</th>
+                            <th className="text-left px-4 py-2 font-medium text-muted-foreground">SKU</th>
+                            <th className="text-left px-4 py-2 font-medium text-muted-foreground">EAN</th>
+                            <th className="text-left px-4 py-2 font-medium text-muted-foreground">Preço</th>
+                            <th className="text-left px-4 py-2 font-medium text-muted-foreground">Estoque</th>
+                            <th className="text-left px-4 py-2 font-medium text-muted-foreground">Detalhes</th>
+                            <th className="text-left px-4 py-2 font-medium text-muted-foreground">Ações</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {savedVariations.map((v) => {
+                            const isActive = v.active ?? true;
+                            const orderedImages = getOrderedImages(v.images || []);
+                            const currentIdx = v.currentImageIndex ?? 0;
+                            const displayImg = orderedImages[currentIdx] || null;
+                            const hasImages = orderedImages.length > 0;
+                            const hasMultiple = orderedImages.length > 1;
+                            return (
+                              <tr
+                                key={v.combination}
+                                className={`border-b border-border last:border-0 table-row-hover ${!isActive ? 'opacity-50' : ''}`}
+                              >
+                                {/* ATIVO */}
+                                <td className="px-4 py-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleSavedVariationActive(v.combination)}
+                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                                      isActive ? 'bg-primary' : 'bg-muted'
+                                    }`}
+                                    aria-label="Ativar/desativar variação"
+                                  >
+                                    <span
+                                      className={`inline-block h-5 w-5 transform rounded-full bg-background transition-transform ${
+                                        isActive ? 'translate-x-5' : 'translate-x-1'
+                                      }`}
+                                    />
+                                  </button>
+                                </td>
 
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">
-                      EAN
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.variationEan}
-                      onChange={(e) =>
-                        updateField('variationEan', e.target.value)
-                      }
-                      placeholder="EAN da variação"
-                      className="input-field"
-                    />
-                  </div>
-                </div>
+                                {/* COMBINAÇÃO */}
+                                <td className="px-4 py-2">
+                                  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary">
+                                    {v.combination}
+                                  </span>
+                                </td>
 
-                <div className="grid grid-cols-4 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">
-                      Peso (kg)
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.variationWeight}
-                      onChange={(e) =>
-                        handleNumericInput('variationWeight', e.target.value)
-                      }
-                      placeholder="0.00"
-                      className="input-field"
-                    />
-                  </div>
+                                {/* IMAGEM (já existe) */}
+                                <td className="px-4 py-2">
+                                  {!hasImages ? (
+                                    <button
+                                      type="button"
+                                      disabled={!isActive}
+                                      onClick={() => openImageModal(v.combination)}
+                                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-border text-xs text-muted-foreground hover:bg-muted transition-colors disabled:opacity-60"
+                                    >
+                                      <Image className="w-3.5 h-3.5" />
+                                      Selecionar
+                                    </button>
+                                  ) : (
+                                    <div className="flex items-center gap-1.5">
+                                      {hasMultiple && (
+                                        <button
+                                          type="button"
+                                          disabled={!isActive}
+                                          onClick={() => navigateImage(v.combination, -1)}
+                                          className="p-0.5 rounded hover:bg-muted transition-colors text-muted-foreground disabled:opacity-60"
+                                        >
+                                          <ChevronLeft className="w-4 h-4" />
+                                        </button>
+                                      )}
+                                      <div className="relative">
+                                        <img
+                                          src={displayImg!.url}
+                                          alt={v.combination}
+                                          className="w-10 h-10 rounded-lg object-cover border border-border"
+                                          onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }}
+                                        />
+                                        {displayImg?.isPrimary && (
+                                          <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[9px] px-1 rounded-full leading-tight">
+                                            ★
+                                          </span>
+                                        )}
+                                      </div>
+                                      {hasMultiple && (
+                                        <button
+                                          type="button"
+                                          disabled={!isActive}
+                                          onClick={() => navigateImage(v.combination, 1)}
+                                          className="p-0.5 rounded hover:bg-muted transition-colors text-muted-foreground disabled:opacity-60"
+                                        >
+                                          <ChevronRight className="w-4 h-4" />
+                                        </button>
+                                      )}
+                                      <button
+                                        type="button"
+                                        disabled={!isActive}
+                                        onClick={() => openImageModal(v.combination)}
+                                        className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground ml-1 disabled:opacity-60"
+                                        title="Editar imagens"
+                                      >
+                                        <Pencil className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
+                                  )}
+                                </td>
 
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">
-                      Comprimento (cm)
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.variationLength}
-                      onChange={(e) =>
-                        handleNumericInput('variationLength', e.target.value)
-                      }
-                      placeholder="0"
-                      className="input-field"
-                    />
-                  </div>
+                                <td className="px-4 py-2 text-foreground">{v.sku || '-'}</td>
+                                <td className="px-4 py-2 text-foreground">{v.ean || '-'}</td>
+                                <td className="px-4 py-2 text-foreground">{v.price || '-'}</td>
+                                <td className="px-4 py-2 text-muted-foreground">{v.stock}</td>
+                                <td className="px-4 py-2">
+                                  {hasDetails(v.details) ? (
+                                    <div className="flex items-center gap-2">
+                                      <Badge variant="secondary" className="text-[10px]">Detalhado</Badge>
+                                      <button
+                                        type="button"
+                                        onClick={() => openDetailsModal(v.combination)}
+                                        className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground"
+                                        title="Editar detalhes"
+                                      >
+                                        <Pencil className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => openDetailsModal(v.combination)}
+                                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-border text-xs text-muted-foreground hover:bg-muted transition-colors"
+                                    >
+                                      <Plus className="w-3.5 h-3.5" />
+                                      Detalhes
+                                    </button>
+                                  )}
+                                </td>
 
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">
-                      Altura (cm)
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.variationHeight}
-                      onChange={(e) =>
-                        handleNumericInput('variationHeight', e.target.value)
-                      }
-                      placeholder="0"
-                      className="input-field"
-                    />
+                                {/* AÇÕES */}
+                                <td className="px-4 py-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => deleteSavedVariation(v.combination)}
+                                    className="p-2 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                                    title="Excluir variação"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
+                )}
 
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">
-                      Largura (cm)
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.variationWidth}
-                      onChange={(e) =>
-                        handleNumericInput('variationWidth', e.target.value)
-                      }
-                      placeholder="0"
-                      className="input-field"
-                    />
-                  </div>
-                </div>
+                {/* Details Modal */}
+                <VariationDetailsModal
+                  open={detailsModalOpen}
+                  onClose={() => setDetailsModalOpen(false)}
+                  combination={detailsModalCombination}
+                  details={savedVariations.find(v => v.combination === detailsModalCombination)?.details || {}}
+                  onSave={(details) => saveDetailsForVariation(detailsModalCombination, details)}
+                />
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">
-                      Descrição Curta
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.variationShortDesc}
-                      onChange={(e) =>
-                        updateField('variationShortDesc', e.target.value)
-                      }
-                      placeholder="Descrição curta da variação"
-                      className="input-field"
-                    />
-                  </div>
+                {/* Image Modal */}
+                <VariationImageModal
+                  open={imageModalOpen}
+                  onClose={() => setImageModalOpen(false)}
+                  combination={imageModalCombination}
+                  images={savedVariations.find(v => v.combination === imageModalCombination)?.images || []}
+                  onSave={(images) => saveImagesForVariation(imageModalCombination, images)}
+                />
 
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">
-                      Local ou Link da Imagem
-                    </label>
-                    <SearchInput
-                      value={formData.variationImageLink}
-                      onChange={(v) => updateField('variationImageLink', v)}
-                      placeholder="Buscar imagem"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
-                    Descrição Longa
-                  </label>
-                  <textarea
-                    value={formData.variationLongDesc}
-                    onChange={(e) =>
-                      updateField('variationLongDesc', e.target.value)
-                    }
-                    placeholder="Descrição detalhada da variação"
-                    rows={3}
-                    className="input-field resize-none"
-                  />
-                </div>
-
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">
-                      Meta Title
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.variationMetaTitle}
-                      onChange={(e) =>
-                        updateField('variationMetaTitle', e.target.value)
-                      }
-                      placeholder="Meta título"
-                      className="input-field"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">
-                      Meta Tag
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.variationMetaTag}
-                      onChange={(e) =>
-                        updateField('variationMetaTag', e.target.value)
-                      }
-                      placeholder="Meta tags"
-                      className="input-field"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">
-                      Meta Description
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.variationMetaDesc}
-                      onChange={(e) =>
-                        updateField('variationMetaDesc', e.target.value)
-                      }
-                      placeholder="Meta descrição"
-                      className="input-field"
-                    />
-                  </div>
-                </div>
-
-                {/* Variation Cards Grid */}
-                <div>
-                  <h3 className="text-sm font-medium text-foreground mb-3">
-                    Imagens da Variação
-                  </h3>
-                  <div className="grid grid-cols-3 gap-4">
-                    {variationCards.map((card) => (
-                      <div
-                        key={card.id}
-                        className="p-4 rounded-lg border border-border bg-muted/30"
-                      >
-                        <div className="w-full h-24 rounded-lg bg-muted flex items-center justify-center mb-3">
-                          <Image className="w-8 h-8 text-muted-foreground" />
-                        </div>
-                        <p className="text-sm font-medium text-foreground mb-1">
-                          {card.description}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Posição: {card.position}
-                        </p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {card.url}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">
-                      Link do Vídeo
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.videoLink}
-                      onChange={(e) =>
-                        updateField('videoLink', e.target.value)
-                      }
-                      placeholder="https://youtube.com/..."
-                      className="input-field"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">
-                      Outros Links
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.otherLinks}
-                      onChange={(e) =>
-                        updateField('otherLinks', e.target.value)
-                      }
-                      placeholder="Links adicionais"
-                      className="input-field"
-                    />
-                  </div>
-                </div>
+                <VariationModel1Modal
+                  open={model1Open}
+                  onClose={() => setModel1Open(false)}
+                  onSave={(rows) =>
+                    setSavedVariations(
+                      rows.map(r => ({
+                        ...r,
+                        active: r.active ?? true,
+                        price: (r.price ?? '').trim() ? r.price : (formData.salePrice || ''),
+                      }))
+                    )
+                  }
+                  parentSku={formData.sku}
+                  parentPrice={formData.salePrice}
+                />
               </div>
             )}
 
@@ -1745,6 +1926,16 @@ export function ProductWizard() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Modal de imagens do PRODUTO (Step 2) */}
+      <VariationImageModal
+        open={productImageModalOpen}
+        onClose={() => setProductImageModalOpen(false)}
+        combination="PRODUTO"
+        images={productImages}
+        onSave={(images) => saveProductImages(images)}
+      />
+
     </div>
   );
 }
