@@ -24,8 +24,8 @@ import { toast } from 'sonner';
 import {
   Product,
   listProducts,
-  createProduct,
-  deleteProduct
+  deleteProduct,
+  createProductWizard
 } from '@/lib/api/products';
 import {
   Dialog,
@@ -42,6 +42,7 @@ type SortDirection = 'asc' | 'desc';
 // Se você já tem o tipo no backend, troque por ele.
 type ProductVariation = {
   id: string;
+  code: string;
   product_id: string;
   combination: string;
   is_default: boolean;
@@ -165,7 +166,7 @@ export function ProductsTable() {
         variations: (product as any).variations ?? [],
       };
 
-      const newProduct = await createProduct(payload);
+      const newProduct = await createProductWizard(payload);
       setProducts(prev => [...prev, newProduct]);
       toast.success('Produto duplicado com sucesso.');
     } catch (error) {
@@ -325,7 +326,7 @@ export function ProductsTable() {
 
                   <td className="p-4">
                     <div className="flex items-center justify-center gap-1">
-                      <Tooltip>
+                      {/* <Tooltip>
                         <TooltipTrigger asChild>
                           <button
                             type="button"
@@ -336,7 +337,7 @@ export function ProductsTable() {
                           </button>
                         </TooltipTrigger>
                         <TooltipContent>Duplicar</TooltipContent>
-                      </Tooltip>
+                      </Tooltip> */}
 
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -452,9 +453,9 @@ export function ProductsTable() {
                 Variações — {(variationsProduct as any)?.name ?? ''}
               </DialogTitle>
 
-              <Button variant="ghost" size="icon" onClick={closeVariations}>
+              {/* <Button variant="ghost" size="icon" onClick={closeVariations}>
                 <X className="w-4 h-4" />
-              </Button>
+              </Button> */}
             </div>
           </DialogHeader>
 
@@ -487,11 +488,9 @@ export function ProductsTable() {
                   <tbody>
                     {variations.map((v) => (
                       <tr key={v.id} className="border-b border-border last:border-b-0">
+                        <td className="p-3 text-sm text-foreground">{v.code ?? '-'}</td>
                         <td className="p-3 text-sm text-foreground">{v.sku ?? '-'}</td>
                         <td className="p-3 text-sm text-foreground">{v.combination ?? '-'}</td>
-                        <td className="p-3 text-sm text-foreground">
-                          {v.is_default ? 'Sim' : 'Não'}
-                        </td>
 
                         {variationAttributeKeys.map((k) => (
                           <td key={k} className="p-3 text-sm text-foreground">

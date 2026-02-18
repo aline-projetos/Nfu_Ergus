@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS product_variations (
   id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   tenant_id        UUID NOT NULL REFERENCES tenants(id) ON DELETE RESTRICT,
   product_id       UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  code       TEXT NOT NULL,
 
   -- regra: produto simples vira uma única variação DEFAULT
   combination      TEXT NOT NULL DEFAULT 'DEFAULT',
@@ -108,6 +109,9 @@ CREATE INDEX IF NOT EXISTS idx_product_variations_tenant_product
 
 CREATE INDEX IF NOT EXISTS idx_product_variations_tenant_active
   ON product_variations (tenant_id, active);
+
+CREATE UNIQUE INDEX IF NOT EXISTS ux_product_variations_tenant_code
+ON product_variations (tenant_id, code);  
 
 -- (Opcional, mas MUITO recomendado) Garantir que tenant_id da variação bata com tenant_id do produto pai
 -- Isso evita “cross-tenant link” por erro de código.

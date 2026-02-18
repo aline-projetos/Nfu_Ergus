@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { X, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -30,14 +30,68 @@ interface Props {
   onSave: (rows: VariationRow[]) => void;
   parentSku: string;
   parentPrice: string;
+  initialRows?: VariationRow[];
 }
 
-export function VariationModel1Modal({ open, onClose, onSave, parentSku, parentPrice  }: Props) {
+function inferAttributeName(values: string[], position: 0 | 1) {
+  // tenta “adivinhar” pelo preset
+  const presets = Object.entries(PRESET_VALUES);
+  for (const [name, presetVals] of presets) {
+    const allInside = values.every(v => presetVals.includes(v));
+    if (allInside && values.length > 0) return name;
+  }
+  return position === 0 ? 'Atributo 1' : 'Atributo 2';
+}
+
+function buildAttributesFromRows(rows: VariationRow[]): AttributeConfig[] {
+  if (!rows?.length) return [];
+
+  const parts = rows
+    .map(r => (r.combination || '').split(' / ').map(s => s.trim()).filter(Boolean));
+
+  const maxLen = Math.max(...parts.map(p => p.length), 0);
+  if (maxLen <= 0) return [];
+
+  // Só suporta 1 ou 2 atributos (igual sua regra atual)
+  const attrCount = Math.min(maxLen, 2);
+
+  const values0 = new Set<string>();
+  const values1 = new Set<string>();
+
+  for (const p of parts) {
+    if (attrCount >= 1 && p[0]) values0.add(p[0]);
+    if (attrCount >= 2 && p[1]) values1.add(p[1]);
+  }
+
+  const attr0 = Array.from(values0);
+  const attr1 = Array.from(values1);
+
+  const result: AttributeConfig[] = [];
+  if (attrCount >= 1) result.push({ name: inferAttributeName(attr0, 0), values: attr0 });
+  if (attrCount >= 2) result.push({ name: inferAttributeName(attr1, 1), values: attr1 });
+
+  return result;
+}
+
+export function VariationModel1Modal({ open, onClose, onSave, parentSku, parentPrice, initialRows = []  }: Props) {
   const [attributes, setAttributes] = useState<AttributeConfig[]>([]);
   const [selectedOption, setSelectedOption] = useState('');
   const [customAttrName, setCustomAttrName] = useState('');
   const [newValueInputs, setNewValueInputs] = useState<Record<number, string>>({});
   const [variationRows, setVariationRows] = useState<VariationRow[]>([]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    setVariationRows(initialRows);
+
+    const inferred = buildAttributesFromRows(initialRows);
+    setAttributes(inferred);
+
+    setSelectedOption('');
+    setCustomAttrName('');
+    setNewValueInputs({});
+  }, [open, initialRows]);
 
   const makeVariationPrefix = useCallback((combo: string) => {
     const first = (combo.split(' / ')[0] || '').trim();
@@ -106,29 +160,6 @@ export function VariationModel1Modal({ open, onClose, onSave, parentSku, parentP
     const base = rows[index];
     const updated: VariationRow = { ...base, [field]: value as any };
     upsertRow(updated);
-  };
-
-  const toggleActive = (combination: string) => {
-    setVariationRows(prev => {
-      const idx = prev.findIndex(r => r.combination === combination);
-      if (idx >= 0) {
-        const copy = [...prev];
-        copy[idx] = { ...copy[idx], active: !copy[idx].active };
-        return copy;
-      }
-      // se ainda não existe no variationRows, cria a partir do rows atual
-      const fallback = rows.find(r => r.combination === combination);
-      if (!fallback) return prev;
-      return [...prev, { ...fallback, active: false }];
-    });
-  };
-
-  const deleteRow = (combination: string) => {
-    setVariationRows(prev => prev.filter(r => r.combination !== combination));
-    // Observação: a combinação continuará sendo calculada em `rows` (combinations),
-    // mas voltará ao default (active=true) se não existir em variationRows.
-    // ✅ Para remover “de verdade”, você teria que remover o valor do atributo que gera a combinação.
-    toast.success('Combinação removida do preview');
   };
 
   const handleAddAttribute = () => {

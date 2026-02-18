@@ -104,3 +104,15 @@ export async function searchNCM(q: string): Promise<Ncm[]> {
 //   if (!res.ok) throw new Error(await parseError(res));
 //   return res.json();
 // }
+
+export async function getCategoryById(id: string): Promise<Category> {
+  return apiGet<Category>(`/categories/${id}`);
+}
+
+export async function getSupplierById(id: string): Promise<Supplier> {
+  return apiGet<Supplier>(`/suppliers/${id}`);
+}
+
+export async function getManufacturerById(id: string): Promise<Manufacturer> {
+  return apiGet<Manufacturer>(`/manufacturers/${id}`);
+}

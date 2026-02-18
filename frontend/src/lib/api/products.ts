@@ -105,6 +105,7 @@ export interface ProductWizardCreateInput {
 
   video_link?: string | null;
   other_links?: string | null;
+  default_images?: VariationImage[];
 
   // regra: sempre precisa existir pelo menos 1 variação
   // - se não houver grade: enviar 1 variação (default)
@@ -119,6 +120,7 @@ export type ProductWizardUpdateInput = ProductWizardCreateInput;
 // =======================
 
 export async function listProducts(): Promise<Product[]> {
+  console.log("lista produtos")
   const res = await fetch(`${getBaseUrl()}/products`, {
     method: "GET",
     headers: getAuthHeaders(),
@@ -137,6 +139,7 @@ export async function listProducts(): Promise<Product[]> {
 // =======================
 
 export async function getProductById(id: string): Promise<Product> {
+  console.log("get produto by id")
   const res = await fetch(`${getBaseUrl()}/products/${id}`, {
     method: "GET",
     headers: getAuthHeaders(),
@@ -157,6 +160,7 @@ export async function getProductById(id: string): Promise<Product> {
 export async function createProductWizard(
   input: ProductWizardCreateInput
 ): Promise<Product> {
+  console.log("cria produto")
   const res = await fetch(`${getBaseUrl()}/products/wizard`, {
     method: "POST",
     headers: getAuthHeaders(),
@@ -171,14 +175,6 @@ export async function createProductWizard(
   return res.json();
 }
 
-// (opcional) Mantém o nome antigo createProduct, mas por baixo chama o wizard
-// pra não precisar refatorar o Wizard agora.
-export async function createProduct(
-  input: ProductWizardCreateInput
-): Promise<Product> {
-  return createProductWizard(input);
-}
-
 // =======================
 // PUT /products/{id} (se você manter alias)
 // ou PUT /products/wizard/{id} (se criar endpoint novo)
@@ -188,11 +184,8 @@ export async function updateProductWizard(
   id: string,
   input: ProductWizardUpdateInput
 ): Promise<Product> {
-  // escolha 1: endpoint novo
+  console.log("atualiza produto")
   const url = `${getBaseUrl()}/products/wizard/${id}`;
-
-  // escolha 2 (se você decidiu que /products/{id} é alias do wizard)
-  // const url = `${getBaseUrl()}/products/${id}`;
 
   const res = await fetch(url, {
     method: "PUT",
@@ -205,15 +198,7 @@ export async function updateProductWizard(
     throw new Error(text || "Erro ao atualizar produto (wizard)");
   }
 
-  return res.json();
-}
-
-// Mantém updateProduct antigo chamando o wizard (alias)
-export async function updateProduct(
-  id: string,
-  input: ProductWizardUpdateInput
-): Promise<Product> {
-  return updateProductWizard(id, input);
+  return;
 }
 
 // =======================
@@ -221,6 +206,7 @@ export async function updateProduct(
 // =======================
 
 export async function deleteProduct(id: string): Promise<void> {
+  console.log("deleta produto")
   const res = await fetch(`${getBaseUrl()}/products/${id}`, {
     method: "DELETE",
     headers: getAuthHeaders(),

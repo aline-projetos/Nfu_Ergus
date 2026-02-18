@@ -19,6 +19,9 @@ import {
   Category,
   Manufacturer,
   Supplier,
+  getCategoryById,
+  getSupplierById,
+  getManufacturerById,
 } from '@/lib/api/lookups';
 import {
   Dialog,
@@ -378,6 +381,8 @@ const navigateProductImage = (direction: number) => {
     other_links: data.otherLinks || null,
   };
 
+  const parentImages = productImages || [];
+
   // ✅ DEFAULT (produto simples)
   const defaultVariation = {
     sku: data.sku.trim(),
@@ -397,13 +402,37 @@ const navigateProductImage = (direction: number) => {
     images: productImages || [],
 
     details: null,
-    combination: "DEFAULT", // ✅ importante
+    combination: "DEFAULT", 
+    
   };
 
   // ✅ SEM grade -> só a default
-  if (!savedVariations || savedVariations.length === 0) {
+   if (!savedVariations || savedVariations.length === 0) {
+    const defaultVariation = {
+      sku: data.sku.trim(),
+      ean: data.ean?.trim() ? data.ean.trim() : null,
+
+      price: data.salePrice || null,
+      cost_price: data.costPrice || null,
+
+      weight: data.weight || null,
+      length: data.length || null,
+      height: data.height || null,
+      width: data.width || null,
+
+      active: true,
+      is_default: true,
+
+      combination: "DEFAULT",
+      details: null,
+
+      // 👇 continua mandando as imagens aqui também
+      images: parentImages,
+    };
+
     return {
       ...base,
+      default_images: parentImages,
       variations: [defaultVariation],
     };
   }
@@ -425,21 +454,16 @@ const navigateProductImage = (direction: number) => {
     active: v.active ?? true,
 
     // ✅ aqui pode vir do modal (se você já salva isso), senão a gente garante abaixo
-    is_default: (v as any).is_default ?? false,
+    is_default: false,
 
     combination: v.combination || null,
     details: (v.details || null) as any,
     images: v.images || [],
   }));
 
-  // ✅ garante 1 default nas variações reais
-  const hasAnyDefault = mapped.some(v => v.is_default === true);
-  if (!hasAnyDefault && mapped.length > 0) {
-    mapped[0].is_default = true;
-  }
-
   return {
     ...base,
+    default_images: parentImages,
     variations: mapped,
   };
 };
@@ -458,6 +482,28 @@ const buildUpdatePayload = (data: FormData): ProductWizardUpdateInput => {
         setIsLoadingProduct(true);
         const product = await getProductById(id);
         setFormData(mapProductToFormData(product));
+
+        const [cat, sup, man] = await Promise.all([
+          product.category_id ? getCategoryById(product.category_id) : Promise.resolve(null),
+          product.supplier_id ? getSupplierById(product.supplier_id) : Promise.resolve(null),
+          product.manufacturer_id ? getManufacturerById(product.manufacturer_id) : Promise.resolve(null),
+        ]);
+
+        setFormData(prev => ({
+          ...prev,
+          categoryId: product.category_id ?? null,
+          categoryCode: cat?.code ?? "",
+          categoryName: cat ? `${cat.code} - ${cat.name}` : "",
+
+          supplierId: product.supplier_id ?? null,
+          supplierCode: sup?.codigo ?? "",
+          supplierName: sup ? `${sup.codigo} - ${sup.nome}` : "",
+
+          manufacturerId: product.manufacturer_id ?? null,
+          manufacturerCode: man?.codigo ?? "",
+          manufacturerName: man ? `${man.codigo} - ${man.nome}` : "",
+        }));
+
         const variations = (product as any).variations || [];
         const def = variations.find((v: any) => v.is_default) || variations[0];
         setProductImages((def?.images || []) as VariationImage[]);
@@ -1717,6 +1763,10 @@ const buildUpdatePayload = (data: FormData): ProductWizardUpdateInput => {
                   }
                   parentSku={formData.sku}
                   parentPrice={formData.salePrice}
+                  initialRows={savedVariations.map(v => ({
+                    ...v,
+                    active: v.active ?? true,
+                  }))}
                 />
               </div>
             )}
