@@ -49,6 +49,8 @@ const menuItems: MenuItem[] = [
     icon: FolderCog,
     children: [
       { label: 'Clientes', path: '/cadastros/admin/clientes' },
+      { label: 'Permissões de Acesso', path: '/cadastros/admin/permissoes' },
+      { label: 'Perfis de Acesso', path: '/cadastros/admin/perfis' },
       { label: 'Usuários', path: '/cadastros/admin/usuarios' },
     ]
   },

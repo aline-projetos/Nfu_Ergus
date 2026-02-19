@@ -49,6 +49,8 @@ const initialFormData: FormData = {
 
   const buildHeaders = (options?: { targetTenantId?: string }) => {
     const token = localStorage.getItem('ergus_token');
+    const isSuperAdmin = JSON.parse(localStorage.getItem('ergus_user') || '{}').isSuperAdmin;
+    const tenantId = JSON.parse(localStorage.getItem('ergus_user') || '{}').tenantId;
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',

@@ -42,7 +42,6 @@ type SortDirection = 'asc' | 'desc';
 // Se você já tem o tipo no backend, troque por ele.
 type ProductVariation = {
   id: string;
-  code: string;
   product_id: string;
   combination: string;
   is_default: boolean;
@@ -474,7 +473,6 @@ export function ProductsTable() {
                   <thead>
                     <tr className="border-b border-border bg-muted/30">
                       <th className="p-3 text-left text-sm font-medium text-muted-foreground">SKU</th>
-                      <th className="p-3 text-left text-sm font-medium text-muted-foreground">Código</th>
                       <th className="p-3 text-left text-sm font-medium text-muted-foreground">Nome</th>
 
                       {variationAttributeKeys.map((k) => (
@@ -488,7 +486,6 @@ export function ProductsTable() {
                   <tbody>
                     {variations.map((v) => (
                       <tr key={v.id} className="border-b border-border last:border-b-0">
-                        <td className="p-3 text-sm text-foreground">{v.code ?? '-'}</td>
                         <td className="p-3 text-sm text-foreground">{v.sku ?? '-'}</td>
                         <td className="p-3 text-sm text-foreground">{v.combination ?? '-'}</td>
 

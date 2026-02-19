@@ -87,19 +87,12 @@ CREATE TABLE IF NOT EXISTS tax_groups (
 CREATE UNIQUE INDEX IF NOT EXISTS ux_tax_groups_tenant_code
   ON tax_groups (tenant_id, code);
 
--- Opcional: se você já tiver a função set_timestamp() definida
-DO $$
-BEGIN
-  IF EXISTS (
-    SELECT 1 FROM pg_proc WHERE proname = 'set_timestamp'
-  ) THEN
-    CREATE TRIGGER trg_tax_groups_set_timestamp
-      BEFORE UPDATE ON tax_groups
-      FOR EACH ROW
-      EXECUTE PROCEDURE set_timestamp();
-  END IF;
-END
-$$;
+-- Trigger de atualização de timestamp
+DROP TRIGGER IF EXISTS trg_tax_groups_set_timestamp ON tax_groups;
+CREATE TRIGGER trg_tax_groups_set_timestamp
+BEFORE UPDATE ON tax_groups
+FOR EACH ROW
+EXECUTE FUNCTION set_timestamp();
 
 -- =====================================================================
 -- 4) Perfis de Operação (Natureza da operação por tenant)
@@ -124,18 +117,11 @@ CREATE TABLE IF NOT EXISTS operation_profiles (
 CREATE UNIQUE INDEX IF NOT EXISTS ux_operation_profiles_tenant_code
   ON operation_profiles (tenant_id, code);
 
-DO $$
-BEGIN
-  IF EXISTS (
-    SELECT 1 FROM pg_proc WHERE proname = 'set_timestamp'
-  ) THEN
-    CREATE TRIGGER trg_operation_profiles_set_timestamp
-      BEFORE UPDATE ON operation_profiles
-      FOR EACH ROW
-      EXECUTE PROCEDURE set_timestamp();
-  END IF;
-END
-$$;
+DROP TRIGGER IF EXISTS trg_operation_profiles_set_timestamp ON operation_profiles;
+CREATE TRIGGER trg_operation_profiles_set_timestamp
+BEFORE UPDATE ON operation_profiles
+FOR EACH ROW
+EXECUTE FUNCTION set_timestamp();
 
 -- =====================================================================
 -- 5) Regras de ICMS por grupo + operação + UF
@@ -183,18 +169,11 @@ CREATE INDEX IF NOT EXISTS idx_icms_rules_match
     destinatario_contribuinte
   );
 
-DO $$
-BEGIN
-  IF EXISTS (
-    SELECT 1 FROM pg_proc WHERE proname = 'set_timestamp'
-  ) THEN
-    CREATE TRIGGER trg_tax_group_icms_rules_set_timestamp
-      BEFORE UPDATE ON tax_group_icms_rules
-      FOR EACH ROW
-      EXECUTE PROCEDURE set_timestamp();
-  END IF;
-END
-$$;
+DROP TRIGGER IF EXISTS trg_tax_group_icms_rules_set_timestamp ON tax_group_icms_rules;
+CREATE TRIGGER trg_tax_group_icms_rules_set_timestamp
+BEFORE UPDATE ON tax_group_icms_rules
+FOR EACH ROW
+EXECUTE FUNCTION set_timestamp();
 
 -- =====================================================================
 -- 6) Regras de PIS/COFINS por grupo + operação
@@ -228,22 +207,12 @@ CREATE INDEX IF NOT EXISTS idx_pis_cofins_rules_match
     operation_profile_id
   );
 
-DO $$
-BEGIN
-  IF EXISTS (
-    SELECT 1 FROM pg_proc WHERE proname = 'set_timestamp'
-  ) THEN
-    CREATE TRIGGER trg_tax_group_pis_cofins_rules_set_timestamp
-      BEFORE UPDATE ON tax_group_pis_cofins_rules
-      FOR EACH ROW
-      EXECUTE PROCEDURE set_timestamp();
-  END IF;
-END
-$$;
+DROP TRIGGER IF EXISTS trg_tax_group_pis_cofins_rules_set_timestamp ON tax_group_pis_cofins_rules;
+CREATE TRIGGER trg_tax_group_pis_cofins_rules_set_timestamp
+BEFORE UPDATE ON tax_group_pis_cofins_rules
+FOR EACH ROW
+EXECUTE FUNCTION set_timestamp();
 
--- =====================================================================
--- 7) Ajuste da tabela products para referenciar tributação
--- =====================================================================
 
 ALTER TABLE products
   ADD COLUMN IF NOT EXISTS tax_group_id   UUID REFERENCES tax_groups(id) ON DELETE SET NULL,

@@ -8,35 +8,6 @@
 -- ============================================================
 
 -- ============================================================
--- 1) Ajuste de products (produto pai)
--- ============================================================
-
-ALTER TABLE products
-  ADD COLUMN IF NOT EXISTS reference         TEXT,
-  ADD COLUMN IF NOT EXISTS unit              TEXT,
-  ADD COLUMN IF NOT EXISTS short_description TEXT,
-  ADD COLUMN IF NOT EXISTS long_description  TEXT,
-  ADD COLUMN IF NOT EXISTS meta_title        TEXT,
-  ADD COLUMN IF NOT EXISTS meta_tag          TEXT,
-  ADD COLUMN IF NOT EXISTS meta_description  TEXT,
-  ADD COLUMN IF NOT EXISTS video_link        TEXT,
-  ADD COLUMN IF NOT EXISTS other_links       TEXT,
-
-  -- Defaults "pai" (podem ser herdados pela variação)
-  ADD COLUMN IF NOT EXISTS weight            NUMERIC(12,3),
-  ADD COLUMN IF NOT EXISTS length            NUMERIC(12,3),
-  ADD COLUMN IF NOT EXISTS height            NUMERIC(12,3),
-  ADD COLUMN IF NOT EXISTS width             NUMERIC(12,3);
-
--- Índices úteis (opcional, mas recomendado)
-CREATE INDEX IF NOT EXISTS idx_products_tenant_name
-  ON products (tenant_id, name);
-
-CREATE INDEX IF NOT EXISTS idx_products_tenant_reference
-  ON products (tenant_id, reference);
-
-
--- ============================================================
 -- 2) Tabela de variações (SKU real)
 -- ============================================================
 
@@ -44,7 +15,6 @@ CREATE TABLE IF NOT EXISTS product_variations (
   id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   tenant_id        UUID NOT NULL REFERENCES tenants(id) ON DELETE RESTRICT,
   product_id       UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
-  code       TEXT NOT NULL,
 
   -- regra: produto simples vira uma única variação DEFAULT
   combination      TEXT NOT NULL DEFAULT 'DEFAULT',
@@ -110,9 +80,6 @@ CREATE INDEX IF NOT EXISTS idx_product_variations_tenant_product
 CREATE INDEX IF NOT EXISTS idx_product_variations_tenant_active
   ON product_variations (tenant_id, active);
 
-CREATE UNIQUE INDEX IF NOT EXISTS ux_product_variations_tenant_code
-ON product_variations (tenant_id, code);  
-
 -- (Opcional, mas MUITO recomendado) Garantir que tenant_id da variação bata com tenant_id do produto pai
 -- Isso evita “cross-tenant link” por erro de código.
 CREATE OR REPLACE FUNCTION enforce_product_variation_tenant_match()
@@ -163,6 +130,7 @@ CREATE TABLE IF NOT EXISTS product_variation_images (
   url          TEXT NOT NULL,
   is_primary   BOOLEAN NOT NULL DEFAULT FALSE,
   position     INT,
+  description TEXT,
 
   created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

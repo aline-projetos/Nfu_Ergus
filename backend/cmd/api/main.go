@@ -101,8 +101,17 @@ func main() {
 	promotions := httpapi.NewPromotionHandler(pg)
 	promotions.RegisterRoutes(mux)
 
+	// handlers de tributação
 	taxHandler := httpapi.NewTaxHandler(pg)
 	taxHandler.RegisterRoutes(mux)
+
+	// handler de controle de acesso
+	accessHandler := httpapi.NewAccessControlHandler(pg)
+	mux.HandleFunc("/access-permissions", accessHandler.ListAccessPermissions)
+
+	//handler de perfis de acesso
+	profilesHandler := httpapi.NewProfileHandler(pg)
+	profilesHandler.RegisterRoutes(mux)
 
 	handler := httpapi.LoggingMiddleware(withCORS(mux))
 

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
@@ -17,45 +16,71 @@ import (
 // MODELS
 // ============================================================
 
-// Representa o produto conforme o que existe HOJE na tabela
 type Product struct {
-	ID             string  `json:"id"`
-	TenantID       string  `json:"tenant_id"`
-	Code           string  `json:"code"`
-	Name           string  `json:"name"`
+	ID       string `json:"id"`
+	TenantID string `json:"tenant_id"`
+	Code     string `json:"code"`
+	Name     string `json:"name"`
+
+	// Campos “pai” (agrupador)
+	Reference        *string `json:"reference,omitempty"`
+	Unit             *string `json:"unit,omitempty"`
+	ShortDescription *string `json:"short_description,omitempty"`
+	LongDescription  *string `json:"long_description,omitempty"`
+	MetaTitle        *string `json:"meta_title,omitempty"`
+	MetaTag          *string `json:"meta_tag,omitempty"`
+	MetaDescription  *string `json:"meta_description,omitempty"`
+
+	PromotionID    *string `json:"promotion_id,omitempty"`
 	CategoryID     *string `json:"category_id,omitempty"`
 	SupplierID     *string `json:"supplier_id,omitempty"`
 	ManufacturerID *string `json:"manufacturer_id,omitempty"`
-	TaxGroupID     *string `json:"tax_group_id,omitempty"` // FK tax_groups.id
-	NCMID          *string `json:"ncm_id,omitempty"`       // FK ncm_codes.id
-	CESTID         *string `json:"cest_id,omitempty"`      // FK cest_codes.id
-	FiscalOrigin   string  `json:"fiscal_origin"`          // enum fiscal_origin_type ('0'..'8')
 
-	// NOVOS (migracao de links/mídia)
+	TaxGroupID   *string `json:"tax_group_id,omitempty"`
+	NCMID        *string `json:"ncm_id,omitempty"`
+	CESTID       *string `json:"cest_id,omitempty"`
+	FiscalOrigin string  `json:"fiscal_origin"`
+
 	VideoLink  *string `json:"video_link,omitempty"`
-	OtherLinks *string `json:"other_links,omitempty"` // pode ser JSON/string conforme você definiu na migration
+	OtherLinks *string `json:"other_links,omitempty"`
 
+	// Sempre pelo menos 1 variação (DEFAULT)
 	Variations []ProductVariation `json:"variations"`
 }
 
 type ProductVariation struct {
-	ID          string         `json:"id"`
-	Code        string         `json:"code"`
-	ProductID   string         `json:"product_id"`
-	Combination string         `json:"combination"`
-	IsDefault   bool           `json:"is_default"`
-	SKU         string         `json:"sku"`
-	EAN         *string        `json:"ean,omitempty"`
-	Active      bool           `json:"active"`
-	Details     map[string]any `json:"details,omitempty"` // JSONB livre
+	ID        string `json:"id"`
+	ProductID string `json:"product_id"`
+	TenantID  string `json:"tenant_id"`
+
+	SKU string  `json:"sku"`
+	EAN *string `json:"ean,omitempty"`
+
+	Price     *string `json:"price,omitempty"`      // guardamos como texto normalizado ("10.99")
+	CostPrice *string `json:"cost_price,omitempty"` // idem
+
+	Weight *string `json:"weight,omitempty"`
+	Length *string `json:"length,omitempty"`
+	Height *string `json:"height,omitempty"`
+	Width  *string `json:"width,omitempty"`
+
+	Active    bool `json:"active"`
+	IsDefault bool `json:"is_default"`
+
+	Combination *string         `json:"combination,omitempty"` // ex: "Cor: Azul / Tamanho: M"
+	Details     json.RawMessage `json:"details,omitempty"`     // JSONB livre (detalhes SEO por variação)
+
+	Images []VariationImageOut `json:"images,omitempty"`
 }
 
-// =====================
-// WIZARD PAYLOAD (NOVO)
-// =====================
+type VariationImageOut struct {
+	ID        string  `json:"id"`
+	URL       string  `json:"url"`
+	IsPrimary bool    `json:"isPrimary"`
+	Position  *int    `json:"position,omitempty"`
+	Desc      *string `json:"description,omitempty"`
+}
 
-// OBS: no payload do front você está mandando "isPrimary" (camelCase),
-// então a tag tem que ser exatamente essa.
 type VariationImageInput struct {
 	ID          string `json:"id,omitempty"` // pode vir vazio
 	URL         string `json:"url"`
@@ -64,17 +89,12 @@ type VariationImageInput struct {
 	Description string `json:"description,omitempty"` // opcional
 }
 
-// Details no seu front é um objeto livre { chave: valor }
-// então aqui deve ser map direto.
-// (Seu VariationDetailsInput antigo com Fields não bate com o payload.)
-type VariationDetailsInput map[string]string
-
 type VariationRowInput struct {
-	Code      string  `json:"code"`
-	SKU       string  `json:"sku"`                  // obrigatório
-	EAN       *string `json:"ean,omitempty"`        // pode ser null
-	Price     any     `json:"price,omitempty"`      // string | number | null
-	CostPrice any     `json:"cost_price,omitempty"` // string | number | null
+	SKU string  `json:"sku"`           // obrigatório
+	EAN *string `json:"ean,omitempty"` // pode ser null
+
+	Price     any `json:"price,omitempty"`      // string | number | null (vindo do front)
+	CostPrice any `json:"cost_price,omitempty"` // idem
 
 	Weight any `json:"weight,omitempty"`
 	Length any `json:"length,omitempty"`
@@ -84,15 +104,36 @@ type VariationRowInput struct {
 	Active    *bool `json:"active,omitempty"`
 	IsDefault *bool `json:"is_default,omitempty"`
 
-	Combination *string               `json:"combination,omitempty"` // pode ser null
-	Details     VariationDetailsInput `json:"details,omitempty"`     // objeto livre
+	Combination *string               `json:"combination,omitempty"` // pode ser null / "DEFAULT"
+	Details     json.RawMessage       `json:"details,omitempty"`     // objeto livre (SEO da variação)
 	Images      []VariationImageInput `json:"images,omitempty"`
 }
 
 type ProductWizardInput struct {
-	// produto “pai”
+	// Produto “pai”
 	Name string `json:"name"`
 
+	Reference string  `json:"reference"`
+	SKU       string  `json:"sku"`
+	EAN       *string `json:"ean"`
+
+	Price     any `json:"price,omitempty"`
+	CostPrice any `json:"cost_price,omitempty"`
+	Weight    any `json:"weight,omitempty"`
+	Length    any `json:"length,omitempty"`
+	Height    any `json:"height,omitempty"`
+	Width     any `json:"width,omitempty"`
+
+	Active *bool `json:"active,omitempty"`
+
+	Unit             *string `json:"unit,omitempty"`
+	ShortDescription *string `json:"short_description,omitempty"`
+	LongDescription  *string `json:"long_description,omitempty"`
+	MetaTitle        *string `json:"meta_title,omitempty"`
+	MetaTag          *string `json:"meta_tag,omitempty"`
+	MetaDescription  *string `json:"meta_description,omitempty"`
+
+	PromotionID    *string `json:"promotion_id,omitempty"`
 	CategoryID     *string `json:"category_id"`
 	SupplierID     *string `json:"supplier_id"`
 	ManufacturerID *string `json:"manufacturer_id"`
@@ -104,65 +145,16 @@ type ProductWizardInput struct {
 	FiscalOrigin *string `json:"fiscal_origin"`
 
 	// Links
-	VideoLink     *string               `json:"video_link"`
-	OtherLinks    *string               `json:"other_links"`
-	DefaultImages []VariationImageInput `json:"default_images,omitempty"`
-
-	//1 variação (inclui default)
-	Variations []VariationRowInput `json:"variations"`
-}
-
-// Retorno para edição (wizard)
-type ProductWizardResponse struct {
-	ID       string `json:"id"`
-	TenantID string `json:"tenant_id"`
-	Code     string `json:"code"`
-	Name     string `json:"name"`
-
-	CategoryID     *string `json:"category_id"`
-	SupplierID     *string `json:"supplier_id"`
-	ManufacturerID *string `json:"manufacturer_id"`
-
-	TaxGroupID   *string `json:"tax_group_id"`
-	NCMID        *string `json:"ncm_id"`
-	CESTID       *string `json:"cest_id"`
-	FiscalOrigin string  `json:"fiscal_origin"`
-
 	VideoLink  *string `json:"video_link"`
 	OtherLinks *string `json:"other_links"`
 
-	Variations []VariationOut `json:"variations"`
-}
+	// Imagens “padrão” do produto (vão para a variação default)
+	DefaultImages []VariationImageInput `json:"default_images,omitempty"`
 
-type VariationOut struct {
-	ID          string  `json:"id"`
-	Code        string  `json:"code"`
-	ProductID   string  `json:"product_id"`
-	Combination *string `json:"combination"`
-	SKU         string  `json:"sku"`
-	EAN         *string `json:"ean"`
-
-	Price     *string `json:"price"` // você pode escolher string/float; abaixo explico
-	CostPrice *string `json:"cost_price"`
-
-	Weight *string `json:"weight"`
-	Length *string `json:"length"`
-	Height *string `json:"height"`
-	Width  *string `json:"width"`
-
-	Active    bool `json:"active"`
-	IsDefault bool `json:"is_default"`
-
-	Details json.RawMessage `json:"details"`
-
-	Images []VariationImageOut `json:"images"`
-}
-
-type VariationImageOut struct {
-	ID  string `json:"id"`
-	URL string `json:"url"`
-	// se tiver order/position na sua tabela, adicione aqui
-	// Position int `json:"position"`
+	// Regra: sempre precisa existir pelo menos 1 variação
+	// - se não houver grade: enviar 1 variação (DEFAULT)
+	// - se houver grade: enviar N variações
+	Variations []VariationRowInput `json:"variations"`
 }
 
 // ============================================================
@@ -184,27 +176,23 @@ func (h *ProductHandler) lockProductCodeCounter(tx *sql.Tx, tenantID string) err
 	return err
 }
 
-func (h *ProductHandler) generateNextProductCodesTX(tx *sql.Tx, tenantID string, n int) ([]string, error) {
-	if n <= 0 {
-		return []string{}, nil
-	}
-
+func (h *ProductHandler) generateNextProductCodeTX(tx *sql.Tx, tenantID string) (string, error) {
 	// 1) lock (serializa concorrência por tenant)
 	if err := h.lockProductCodeCounter(tx, tenantID); err != nil {
-		return nil, fmt.Errorf("erro ao lockar contador: %w", err)
+		return "", fmt.Errorf("erro ao lockar contador: %w", err)
 	}
 
 	// 2) lê e trava a sequência do tenant
 	var nextNum int
 	err := tx.QueryRow(`
 		select next_code
-		from tenant_product_sequences
-		where tenant_id = $1
-		for update
+		  from tenant_product_sequences
+		 where tenant_id = $1
+		 for update
 	`, tenantID).Scan(&nextNum)
 
 	if err == sql.ErrNoRows {
-		// Se não existe linha ainda, inicializa em 1 (ou baseado no maior code, se preferir)
+		// Se não existe linha ainda, inicializa em 1
 		nextNum = 1
 
 		_, err2 := tx.Exec(`
@@ -213,44 +201,40 @@ func (h *ProductHandler) generateNextProductCodesTX(tx *sql.Tx, tenantID string,
 			on conflict (tenant_id) do nothing
 		`, tenantID, nextNum)
 		if err2 != nil {
-			return nil, fmt.Errorf("erro ao criar sequência do tenant: %w", err2)
+			return "", fmt.Errorf("erro ao criar sequência do tenant: %w", err2)
 		}
 
-		// trava novamente para garantir consistência
+		// Releitura com FOR UPDATE pra garantir que está travado corretamente
 		if err2 := tx.QueryRow(`
 			select next_code
-			from tenant_product_sequences
-			where tenant_id = $1
-			for update
+			  from tenant_product_sequences
+			 where tenant_id = $1
+			 for update
 		`, tenantID).Scan(&nextNum); err2 != nil {
-			return nil, fmt.Errorf("erro ao reler sequência do tenant: %w", err2)
+			return "", fmt.Errorf("erro ao reler sequência do tenant: %w", err2)
 		}
 	} else if err != nil {
-		return nil, fmt.Errorf("erro ao ler sequência do tenant: %w", err)
+		return "", fmt.Errorf("erro ao ler sequência do tenant: %w", err)
 	}
 
-	// 3) gera códigos a partir do nextNum
-	codes := buildProdCodes(nextNum-1, n) // buildProdCodes espera "lastNum", então usamos nextNum-1
+	// 3) gera o código baseado no nextNum atual
+	code := buildProdCode(nextNum)
 
-	// 4) avança o ponteiro: next_code += n
+	// 4) avança o ponteiro: next_code += 1
 	_, err = tx.Exec(`
 		update tenant_product_sequences
-		set next_code = next_code + $2
-		where tenant_id = $1
-	`, tenantID, n)
+		   set next_code = next_code + 1
+		 where tenant_id = $1
+	`, tenantID)
 	if err != nil {
-		return nil, fmt.Errorf("erro ao atualizar sequência do tenant: %w", err)
+		return "", fmt.Errorf("erro ao atualizar sequência do tenant: %w", err)
 	}
 
-	return codes, nil
+	return code, nil
 }
 
-func buildProdCodes(lastNum int, n int) []string {
-	out := make([]string, n)
-	for i := range n {
-		out[i] = fmt.Sprintf("PROD%03d", lastNum+1+i)
-	}
-	return out
+func buildProdCode(num int) string {
+	return fmt.Sprintf("PROD%06d", num)
 }
 
 // Registra as rotas relacionadas a Product
@@ -364,9 +348,9 @@ func (h *ProductHandler) CreateProductWizard(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// Regra: produto simples = 1 variação DEFAULT (is_default=true)
+	// Regra base: sempre precisa ter pelo menos 1 variação
 	if len(in.Variations) == 0 {
-		http.Error(w, "variations é obrigatório (envie 1 variação DEFAULT para produto simples)", http.StatusBadRequest)
+		http.Error(w, "variations é obrigatório (envie 1 variação para produto simples ou N para grade)", http.StatusBadRequest)
 		return
 	}
 
@@ -383,8 +367,9 @@ func (h *ProductHandler) CreateProductWizard(w http.ResponseWriter, r *http.Requ
 		}
 	}
 
-	// ✅ Se tem variações reais (grade), remove qualquer DEFAULT enviada por engano
 	if hasRealVariations {
+		// ✅ CASO: PRODUTO COM GRADE
+		// remove qualquer variação que venha marcada como "DEFAULT" por engano
 		filtered := make([]VariationRowInput, 0, len(in.Variations))
 		for _, v := range in.Variations {
 			comb := ""
@@ -403,24 +388,38 @@ func (h *ProductHandler) CreateProductWizard(w http.ResponseWriter, r *http.Requ
 			http.Error(w, "grade de variações inválida (nenhuma variação real informada)", http.StatusBadRequest)
 			return
 		}
-	} else {
-		// ✅ Se NÃO tem variações reais, garante que a única variação seja DEFAULT
+
+		// 👉 regra de domínio: produto com grade NÃO tem variação default
 		for i := range in.Variations {
-			comb := "DEFAULT"
-			in.Variations[i].Combination = &comb
+			in.Variations[i].IsDefault = nil // ou ponteiro pra false, se preferir gravar explicitamente
 		}
+
+	} else {
+		// ✅ CASO: PRODUTO SIMPLES
+		// se não há combination "real", obrigatoriamente deve ser exatamente 1 variação
+		if len(in.Variations) != 1 {
+			http.Error(w, "produto simples deve ter exatamente 1 variação DEFAULT", http.StatusBadRequest)
+			return
+		}
+
+		// garante combination = "DEFAULT"
+		comb := "DEFAULT"
+		in.Variations[0].Combination = &comb
+
+		// garante is_default = true
+		def := true
+		in.Variations[0].IsDefault = &def
+
+		// se quiser, aqui poderia garantir também que imagens estejam coerentes
+		// (ex: se variação não tiver imagens, herdar de in.DefaultImages)
 	}
 
-	// valida SKU de cada variação + conta defaults
-	defaultCount := 0
+	// valida SKU de cada variação (todas precisam ter sku)
 	for i := range in.Variations {
 		row := &in.Variations[i]
 		if strings.TrimSpace(row.SKU) == "" {
 			http.Error(w, "toda variação precisa de sku", http.StatusBadRequest)
 			return
-		}
-		if row.IsDefault != nil && *row.IsDefault {
-			defaultCount++
 		}
 	}
 
@@ -441,35 +440,13 @@ func (h *ProductHandler) CreateProductWizard(w http.ResponseWriter, r *http.Requ
 	}
 	defer tx.Rollback()
 
-	var nextCode string
-
-	if hasRealVariations {
-		codes, err := h.generateNextProductCodesTX(tx, tenantID, 1+len(in.Variations))
-		if err != nil {
-			http.Error(w, "erro ao gerar códigos: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		nextCode = codes[0] // pai
-		for i := range in.Variations {
-			in.Variations[i].Code = codes[i+1] // sempre sucessores
-		}
-	} else {
-		codesPai, err := h.generateNextProductCodesTX(tx, tenantID, 1)
-		if err != nil {
-			http.Error(w, "erro ao gerar código do produto: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-		nextCode = codesPai[0]
-
-		if len(in.Variations) != 1 {
-			http.Error(w, "produto simples deve ter exatamente 1 variação DEFAULT", http.StatusBadRequest)
-			return
-		}
-		in.Variations[0].Code = nextCode
+	code, err := h.generateNextProductCodeTX(tx, tenantID)
+	if err != nil {
+		http.Error(w, "erro ao gerar código do produto", http.StatusInternalServerError)
+		return
 	}
 
-	// 3) salva PRODUCTS (pai)
+	// 5) salva PRODUCTS (pai)
 	_, err = tx.Exec(`
 		insert into products (
 			id, tenant_id, code, name,
@@ -478,7 +455,7 @@ func (h *ProductHandler) CreateProductWizard(w http.ResponseWriter, r *http.Requ
 			video_link, other_links
 		) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
 	`,
-		productID, tenantID, nextCode, strings.TrimSpace(in.Name),
+		productID, tenantID, code, strings.TrimSpace(in.Name),
 		in.CategoryID, in.SupplierID, in.ManufacturerID,
 		in.TaxGroupID, in.NCMID, in.CESTID, fo,
 		in.VideoLink, in.OtherLinks,
@@ -490,7 +467,7 @@ func (h *ProductHandler) CreateProductWizard(w http.ResponseWriter, r *http.Requ
 
 	parentImages := in.DefaultImages
 
-	// 4) salva VARIAÇÕES (agora já com SKU correto)
+	// 6) salva VARIAÇÕES (agora já com SKU/código corretos)
 	for _, row := range in.Variations {
 		varID := uuid.NewString()
 
@@ -509,9 +486,45 @@ func (h *ProductHandler) CreateProductWizard(w http.ResponseWriter, r *http.Requ
 			comb = strings.TrimSpace(*row.Combination)
 		}
 
+		priceVal, err := normalizeNumericField(row.Price)
+		if err != nil {
+			http.Error(w, "variação com sku "+row.SKU+": campo price inválido: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		costVal, err := normalizeNumericField(row.CostPrice)
+		if err != nil {
+			http.Error(w, "variação com sku "+row.SKU+": campo cost_price inválido: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		weightVal, err := normalizeNumericField(row.Weight)
+		if err != nil {
+			http.Error(w, "variação com sku "+row.SKU+": campo weight inválido: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		lengthVal, err := normalizeNumericField(row.Length)
+		if err != nil {
+			http.Error(w, "variação com sku "+row.SKU+": campo length inválido: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		heightVal, err := normalizeNumericField(row.Height)
+		if err != nil {
+			http.Error(w, "variação com sku "+row.SKU+": campo height inválido: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		widthVal, err := normalizeNumericField(row.Width)
+		if err != nil {
+			http.Error(w, "variação com sku "+row.SKU+": campo width inválido: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+
 		_, err = tx.Exec(`
 			insert into product_variations (
-				id, tenant_id, product_id, code,
+				id, tenant_id, product_id,
 				combination, sku, ean,
 				price, cost_price,
 				weight, length, height, width,
@@ -522,22 +535,22 @@ func (h *ProductHandler) CreateProductWizard(w http.ResponseWriter, r *http.Requ
 				$4,$5,$6,
 				$7,$8,
 				$9,$10,$11,$12,
-				$13,$14,$15,
-				$16::jsonb
+				$13,$14,
+				$15::jsonb
 			)
 		`,
-			varID, tenantID, productID, row.Code,
+			varID, tenantID, productID,
 			comb,
 			strings.TrimSpace(row.SKU),
 			nullIfEmptyPtr(row.EAN),
-			parseMoneyAny(row.Price),
-			parseMoneyAny(row.CostPrice),
-			parseDecimalAny(row.Weight),
-			parseDecimalAny(row.Length),
-			parseDecimalAny(row.Height),
-			parseDecimalAny(row.Width),
+			priceVal,
+			costVal,
+			weightVal,
+			lengthVal,
+			heightVal,
+			widthVal,
 			active, isDefault,
-			mustJSON(row.Details),
+			mustJSONRaw(row.Details),
 		)
 		if err != nil {
 			http.Error(w, "erro ao salvar variação: "+err.Error(), http.StatusInternalServerError)
@@ -545,7 +558,6 @@ func (h *ProductHandler) CreateProductWizard(w http.ResponseWriter, r *http.Requ
 		}
 
 		imgsToUse := row.Images
-
 		if len(imgsToUse) == 0 {
 			imgsToUse = parentImages
 		}
@@ -567,7 +579,7 @@ func (h *ProductHandler) CreateProductWizard(w http.ResponseWriter, r *http.Requ
 	out := Product{
 		ID:             productID,
 		TenantID:       tenantID,
-		Code:           nextCode,
+		Code:           code,
 		Name:           in.Name,
 		CategoryID:     in.CategoryID,
 		SupplierID:     in.SupplierID,
@@ -604,34 +616,39 @@ func (h *ProductHandler) CreateProductWizard(w http.ResponseWriter, r *http.Requ
 func (h *ProductHandler) UpdateProductWizard(w http.ResponseWriter, r *http.Request, productID string) {
 	defer r.Body.Close()
 
+	// 1) sessão
 	if _, err := RequireSession(h.DB, r); err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
+	// 2) tenant
 	tenantID, err := GetTenantIDFromHeader(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
+	// 3) decode
 	var in ProductWizardInput
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		http.Error(w, "JSON inválido", http.StatusBadRequest)
 		return
 	}
-	log.Printf("[CreateProductWizard] default_images recebidas: %d", len(in.DefaultImages))
+	log.Printf("[UpdateProductWizard] default_images recebidas: %d", len(in.DefaultImages))
 
+	// 4) validações do novo modelo
 	if strings.TrimSpace(in.Name) == "" {
 		http.Error(w, "name é obrigatório", http.StatusBadRequest)
 		return
 	}
+
 	if len(in.Variations) == 0 {
-		http.Error(w, "variations é obrigatório (envie 1 variação DEFAULT para produto simples)", http.StatusBadRequest)
+		http.Error(w, "variations é obrigatório (envie 1 variação para produto simples ou N para grade)", http.StatusBadRequest)
 		return
 	}
 
-	// detecta grade (igual você já faz)
+	// Detecta se é “grade” (tem alguma combination diferente de DEFAULT)
 	hasRealVariations := false
 	for i := range in.Variations {
 		comb := ""
@@ -644,9 +661,8 @@ func (h *ProductHandler) UpdateProductWizard(w http.ResponseWriter, r *http.Requ
 		}
 	}
 
-	// normaliza regras do payload
 	if hasRealVariations {
-		// remove DEFAULT se vier por engano
+		// CASO: PRODUTO COM GRADE
 		filtered := make([]VariationRowInput, 0, len(in.Variations))
 		for _, v := range in.Variations {
 			comb := ""
@@ -664,29 +680,42 @@ func (h *ProductHandler) UpdateProductWizard(w http.ResponseWriter, r *http.Requ
 			http.Error(w, "grade de variações inválida (nenhuma variação real informada)", http.StatusBadRequest)
 			return
 		}
+
+		// produto com grade NÃO tem variação default
+		for i := range in.Variations {
+			in.Variations[i].IsDefault = nil
+		}
+
 	} else {
-		// simples: força DEFAULT e exige 1 variação
+		// CASO: PRODUTO SIMPLES
 		if len(in.Variations) != 1 {
 			http.Error(w, "produto simples deve ter exatamente 1 variação DEFAULT", http.StatusBadRequest)
 			return
 		}
+
 		comb := "DEFAULT"
 		in.Variations[0].Combination = &comb
+
+		def := true
+		in.Variations[0].IsDefault = &def
 	}
 
-	// valida SKU
+	// valida SKU de cada variação
 	for i := range in.Variations {
-		if strings.TrimSpace(in.Variations[i].SKU) == "" {
+		row := &in.Variations[i]
+		if strings.TrimSpace(row.SKU) == "" {
 			http.Error(w, "toda variação precisa de sku", http.StatusBadRequest)
 			return
 		}
 	}
 
+	// fiscal origin default
 	fo := "0"
 	if in.FiscalOrigin != nil && strings.TrimSpace(*in.FiscalOrigin) != "" {
 		fo = strings.TrimSpace(*in.FiscalOrigin)
 	}
 
+	// 5) tx
 	tx, err := h.DB.Begin()
 	if err != nil {
 		http.Error(w, "erro ao iniciar transação: "+err.Error(), http.StatusInternalServerError)
@@ -694,35 +723,39 @@ func (h *ProductHandler) UpdateProductWizard(w http.ResponseWriter, r *http.Requ
 	}
 	defer tx.Rollback()
 
-	// code do produto (para DEFAULT herdar)
-	var productCode string
-	if err := tx.QueryRow(`
+	// 6) garante que o produto existe e pertence ao tenant
+	var existingCode string
+	err = tx.QueryRow(`
 		select code
 		  from products
-		 where id=$1 and tenant_id=$2
-	`, productID, tenantID).Scan(&productCode); err != nil {
-		if err == sql.ErrNoRows {
-			http.Error(w, "produto não encontrado", http.StatusNotFound)
-			return
-		}
-		http.Error(w, "erro ao buscar produto: "+err.Error(), http.StatusInternalServerError)
+		 where id = $1
+		   and tenant_id = $2
+	`, productID, tenantID).Scan(&existingCode)
+
+	if err == sql.ErrNoRows {
+		http.Error(w, "produto não encontrado", http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		http.Error(w, "erro ao carregar produto: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// 1) update products (igual seu)
+	// 7) atualiza PRODUCTS (pai) — NÃO mexe no code
 	_, err = tx.Exec(`
 		update products
-		   set name            = $1,
-			   category_id      = $2,
-			   supplier_id      = $3,
-			   manufacturer_id  = $4,
-			   tax_group_id     = $5,
-			   ncm_id           = $6,
-			   cest_id          = $7,
-			   fiscal_origin    = $8,
-			   video_link       = $9,
-			   other_links      = $10
-		 where id = $11 and tenant_id = $12
+		   set name           = $1,
+		       category_id     = $2,
+		       supplier_id     = $3,
+		       manufacturer_id = $4,
+		       tax_group_id    = $5,
+		       ncm_id          = $6,
+		       cest_id         = $7,
+		       fiscal_origin   = $8,
+		       video_link      = $9,
+		       other_links     = $10
+		 where id = $11
+		   and tenant_id = $12
 	`,
 		strings.TrimSpace(in.Name),
 		in.CategoryID, in.SupplierID, in.ManufacturerID,
@@ -737,112 +770,59 @@ func (h *ProductHandler) UpdateProductWizard(w http.ResponseWriter, r *http.Requ
 
 	parentImages := in.DefaultImages
 
-	// 2) carrega variações atuais (para decidir conversão e fazer upsert)
-	type existingVar struct {
-		ID        string
-		Code      string
-		SKU       string
-		Comb      string
-		IsDefault bool
+	// 8) trata variações de acordo com o tipo
+	if !hasRealVariations {
+		// PRODUTO SIMPLES: zera todas as variações e recria a única DEFAULT
+		if _, err := tx.Exec(`
+			delete from product_variations
+			 where tenant_id = $1
+			   and product_id = $2
+		`, tenantID, productID); err != nil {
+			http.Error(w, "erro ao limpar variações do produto simples: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+	} else {
+		// PRODUTO COM GRADE: remove apenas a variação default antiga (se existir)
+		if _, err := tx.Exec(`
+			delete from product_variations
+			 where tenant_id = $1
+			   and product_id = $2
+			   and is_default = true
+		`, tenantID, productID); err != nil {
+			http.Error(w, "erro ao remover variação default antiga: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
-	existing := make([]existingVar, 0, 16)
+
+	// 9) carrega variações existentes (pós-limpeza acima) para upsert por SKU
+	existingBySKU := make(map[string]string) // sku -> id
 
 	rows, err := tx.Query(`
-		select id, code, sku, combination, is_default
+		select id, sku
 		  from product_variations
-		 where tenant_id=$1 and product_id=$2
+		 where tenant_id = $1
+		   and product_id = $2
 	`, tenantID, productID)
 	if err != nil {
-		http.Error(w, "erro ao buscar variações atuais: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "erro ao carregar variações existentes: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
 
 	for rows.Next() {
-		var e existingVar
-		if err := rows.Scan(&e.ID, &e.Code, &e.SKU, &e.Comb, &e.IsDefault); err != nil {
-			http.Error(w, "erro ao ler variações atuais: "+err.Error(), http.StatusInternalServerError)
+		var id, sku string
+		if err := rows.Scan(&id, &sku); err != nil {
+			http.Error(w, "erro ao ler variação existente: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
-		existing = append(existing, e)
+		existingBySKU[sku] = id
 	}
 	if err := rows.Err(); err != nil {
-		http.Error(w, "erro ao iterar variações atuais: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "erro ao iterar variações existentes: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	hasDefaultNow := false
-	for _, e := range existing {
-		if e.IsDefault || strings.ToUpper(e.Comb) == "DEFAULT" {
-			hasDefaultNow = true
-			break
-		}
-	}
-
-	// 3) conversão: simples -> grade => remove DEFAULT (e imagens dela) APENAS
-	if hasRealVariations && hasDefaultNow {
-		// apaga imagens da default
-		_, _ = tx.Exec(`
-			delete from product_variation_images
-			 where tenant_id=$1
-			   and variation_id in (
-				   select id
-					 from product_variations
-					where tenant_id=$1 and product_id=$2 and is_default=true
-			   )
-		`, tenantID, productID)
-
-		// apaga a default
-		_, err = tx.Exec(`
-			delete from product_variations
-			 where tenant_id=$1 and product_id=$2 and is_default=true
-		`, tenantID, productID)
-		if err != nil {
-			http.Error(w, "erro ao remover variação default: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-	}
-
-	// 4) define CODE das variações do payload:
-	//    - grade: gerar code só para as NOVAS sem code
-	//    - simples: herda code do produto
-	if hasRealVariations {
-		need := 0
-		for i := range in.Variations {
-			if strings.TrimSpace(in.Variations[i].Code) == "" {
-				need++
-			}
-		}
-		if need > 0 {
-			codes, err := h.generateNextProductCodesTX(tx, tenantID, need)
-			if err != nil {
-				http.Error(w, "erro ao gerar códigos: "+err.Error(), http.StatusInternalServerError)
-				return
-			}
-			k := 0
-			for i := range in.Variations {
-				if strings.TrimSpace(in.Variations[i].Code) == "" {
-					in.Variations[i].Code = codes[k]
-					k++
-				}
-			}
-		}
-	} else {
-		in.Variations[0].Code = productCode
-	}
-
-	// index rápido dos existentes por code e por (sku+comb)
-	byCode := map[string]existingVar{}
-	bySkuComb := map[string]existingVar{}
-	for _, e := range existing {
-		if strings.TrimSpace(e.Code) != "" {
-			byCode[strings.TrimSpace(e.Code)] = e
-		}
-		key := strings.TrimSpace(e.SKU) + "||" + strings.ToUpper(strings.TrimSpace(e.Comb))
-		bySkuComb[key] = e
-	}
-
-	// 5) UPSERT variações do payload (sem deletar as outras existentes)
+	// 10) upsert de variações com base no payload
 	for _, row := range in.Variations {
 		active := true
 		if row.Active != nil {
@@ -853,135 +833,143 @@ func (h *ProductHandler) UpdateProductWizard(w http.ResponseWriter, r *http.Requ
 		if row.IsDefault != nil {
 			isDefault = *row.IsDefault
 		}
-		// simples sempre default
-		if !hasRealVariations {
-			isDefault = true
-		}
 
 		comb := "DEFAULT"
 		if row.Combination != nil && strings.TrimSpace(*row.Combination) != "" {
 			comb = strings.TrimSpace(*row.Combination)
 		}
 
-		// tenta achar existente
-		var found *existingVar
-		if c := strings.TrimSpace(row.Code); c != "" {
-			if e, ok := byCode[c]; ok {
-				found = &e
-			}
-		}
-		if found == nil {
-			key := strings.TrimSpace(row.SKU) + "||" + strings.ToUpper(strings.TrimSpace(comb))
-			if e, ok := bySkuComb[key]; ok {
-				found = &e
-			}
+		priceVal, err := normalizeNumericField(row.Price)
+		if err != nil {
+			http.Error(w, "variação com sku "+row.SKU+": campo price inválido: "+err.Error(), http.StatusBadRequest)
+			return
 		}
 
-		if found == nil {
-			// INSERT (nova variação)
+		costVal, err := normalizeNumericField(row.CostPrice)
+		if err != nil {
+			http.Error(w, "variação com sku "+row.SKU+": campo cost_price inválido: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		weightVal, err := normalizeNumericField(row.Weight)
+		if err != nil {
+			http.Error(w, "variação com sku "+row.SKU+": campo weight inválido: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		lengthVal, err := normalizeNumericField(row.Length)
+		if err != nil {
+			http.Error(w, "variação com sku "+row.SKU+": campo length inválido: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		heightVal, err := normalizeNumericField(row.Height)
+		if err != nil {
+			http.Error(w, "variação com sku "+row.SKU+": campo height inválido: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		widthVal, err := normalizeNumericField(row.Width)
+		if err != nil {
+			http.Error(w, "variação com sku "+row.SKU+": campo width inválido: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		skuTrimmed := strings.TrimSpace(row.SKU)
+		if existingID, ok := existingBySKU[skuTrimmed]; ok {
+			// UPDATE variação existente
+			_, err = tx.Exec(`
+				update product_variations
+				   set combination      = $1,
+					   ean             = $2,
+					   price           = $3,
+					   cost_price      = $4,
+					   weight          = $5,
+					   length          = $6,
+					   height          = $7,
+					   width           = $8,
+					   active          = $9,
+					   is_default      = $10,
+					   details         = $11::jsonb
+				 where id             = $12
+				   and tenant_id       = $13
+			`,
+				comb,
+				nullIfEmptyPtr(row.EAN),
+				priceVal,
+				costVal,
+				weightVal,
+				lengthVal,
+				heightVal,
+				widthVal,
+				active,
+				isDefault,
+				mustJSONRaw(row.Details),
+				existingID,
+				tenantID,
+			)
+			if err != nil {
+				http.Error(w, "erro ao atualizar variação: "+err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			// imagens
+			imgsToUse := row.Images
+			if len(imgsToUse) == 0 {
+				imgsToUse = parentImages
+			}
+			if len(imgsToUse) > 0 {
+				if err := insertVariationImagesTX(tx, tenantID, existingID, imgsToUse); err != nil {
+					http.Error(w, "erro ao salvar imagens da variação: "+err.Error(), http.StatusInternalServerError)
+					return
+				}
+			}
+
+		} else {
+			// INSERT nova variação
 			varID := uuid.NewString()
 
 			_, err = tx.Exec(`
 				insert into product_variations (
-					id, tenant_id, product_id, code,
+					id, tenant_id, product_id,
 					combination, sku, ean,
 					price, cost_price,
 					weight, length, height, width,
 					active, is_default,
 					details
 				) values (
-					$1,$2,$3,$4,
-					$5,$6,$7,
-					$8,$9,
-					$10,$11,$12,$13,
-					$14,$15,
-					$16::jsonb
+					$1,$2,$3,
+					$4,$5,$6,
+					$7,$8,
+					$9,$10,$11,$12,
+					$13,$14,
+					$15::jsonb
 				)
 			`,
-				varID, tenantID, productID, strings.TrimSpace(row.Code),
+				varID, tenantID, productID,
 				comb,
-				strings.TrimSpace(row.SKU),
+				skuTrimmed,
 				nullIfEmptyPtr(row.EAN),
-				parseMoneyAny(row.Price),
-				parseMoneyAny(row.CostPrice),
-				parseDecimalAny(row.Weight),
-				parseDecimalAny(row.Length),
-				parseDecimalAny(row.Height),
-				parseDecimalAny(row.Width),
+				priceVal,
+				costVal,
+				weightVal,
+				lengthVal,
+				heightVal,
+				widthVal,
 				active, isDefault,
-				mustJSON(row.Details),
+				mustJSONRaw(row.Details),
 			)
 			if err != nil {
-				http.Error(w, "erro ao inserir variação: "+err.Error(), http.StatusInternalServerError)
+				http.Error(w, "erro ao salvar variação: "+err.Error(), http.StatusInternalServerError)
 				return
 			}
 
-			// imagens (se vierem)
-			if row.Images != nil { // nil = não mexe, [] = limpa
-				_ = clearVariationImagesTX(tx, tenantID, varID)
-				if len(row.Images) > 0 {
-					if err := insertVariationImagesTX(tx, tenantID, varID, row.Images); err != nil {
-						http.Error(w, "erro ao salvar imagens da variação: "+err.Error(), http.StatusInternalServerError)
-						return
-					}
-				}
-			}
-
-			continue
-		}
-
-		// UPDATE (variação já existe) — mantém id e code estáveis
-		_, err = tx.Exec(`
-			update product_variations
-			   set code       = $1,
-				   combination= $2,
-				   sku        = $3,
-				   ean        = $4,
-				   price      = $5,
-				   cost_price = $6,
-				   weight     = $7,
-				   length     = $8,
-				   height     = $9,
-				   width      = $10,
-				   active     = $11,
-				   is_default = $12,
-				   details    = $13::jsonb
-			 where tenant_id=$14 and product_id=$15 and id=$16
-		`,
-			strings.TrimSpace(row.Code),
-			comb,
-			strings.TrimSpace(row.SKU),
-			nullIfEmptyPtr(row.EAN),
-			parseMoneyAny(row.Price),
-			parseMoneyAny(row.CostPrice),
-			parseDecimalAny(row.Weight),
-			parseDecimalAny(row.Length),
-			parseDecimalAny(row.Height),
-			parseDecimalAny(row.Width),
-			active,
-			isDefault,
-			mustJSON(row.Details),
-			tenantID, productID, found.ID,
-		)
-		if err != nil {
-			http.Error(w, "erro ao atualizar variação: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		// imagens: só mexe se o payload enviar Images (nil = não altera)
-		if row.Images != nil {
-			if err := clearVariationImagesTX(tx, tenantID, found.ID); err != nil {
-				http.Error(w, "erro ao limpar imagens da variação: "+err.Error(), http.StatusInternalServerError)
-				return
-			}
 			imgsToUse := row.Images
-
 			if len(imgsToUse) == 0 {
 				imgsToUse = parentImages
 			}
-
 			if len(imgsToUse) > 0 {
-				if err := insertVariationImagesTX(tx, tenantID, found.ID, imgsToUse); err != nil {
+				if err := insertVariationImagesTX(tx, tenantID, varID, imgsToUse); err != nil {
 					http.Error(w, "erro ao salvar imagens da variação: "+err.Error(), http.StatusInternalServerError)
 					return
 				}
@@ -989,33 +977,32 @@ func (h *ProductHandler) UpdateProductWizard(w http.ResponseWriter, r *http.Requ
 		}
 	}
 
-	// 6) se veio simples (DEFAULT), opcionalmente remove não-default para manter o modelo coerente
-	if !hasRealVariations {
-		_, err = tx.Exec(`
-			delete from product_variations
-			 where tenant_id=$1 and product_id=$2 and is_default=false
-		`, tenantID, productID)
-		if err != nil {
-			http.Error(w, "erro ao remover variações não-default ao converter para simples: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-	}
-
+	// 11) commit
 	if err := tx.Commit(); err != nil {
 		http.Error(w, "erro ao commit: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	w.WriteHeader(http.StatusNoContent)
-}
+	// Monta resposta básica
+	out := Product{
+		ID:             productID,
+		TenantID:       tenantID,
+		Code:           existingCode,
+		Name:           in.Name,
+		CategoryID:     in.CategoryID,
+		SupplierID:     in.SupplierID,
+		ManufacturerID: in.ManufacturerID,
+		TaxGroupID:     in.TaxGroupID,
+		NCMID:          in.NCMID,
+		CESTID:         in.CESTID,
+		FiscalOrigin:   fo,
+		VideoLink:      in.VideoLink,
+		OtherLinks:     in.OtherLinks,
+	}
 
-// helper (se você ainda não tiver)
-func clearVariationImagesTX(tx *sql.Tx, tenantID, variationID string) error {
-	_, err := tx.Exec(`
-		delete from product_variation_images
-		 where tenant_id=$1 and variation_id=$2
-	`, tenantID, variationID)
-	return err
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(out)
 }
 
 // ListProducts godoc
@@ -1159,7 +1146,6 @@ func (h *ProductHandler) ListProducts(w http.ResponseWriter, r *http.Request) {
 		varRows, err := h.DB.Query(`
 		select
 			id,
-			code,
 			product_id,
 			combination,
 			is_default,
@@ -1193,7 +1179,6 @@ func (h *ProductHandler) ListProducts(w http.ResponseWriter, r *http.Request) {
 
 			if err := varRows.Scan(
 				&v.ID,
-				&v.Code,
 				&v.ProductID,
 				&v.Combination,
 				&v.IsDefault,
@@ -1261,7 +1246,7 @@ func (h *ProductHandler) GetProductByID(w http.ResponseWriter, r *http.Request, 
 	}
 
 	// 1) busca o produto (pai)
-	var out ProductWizardResponse
+	var out Product
 
 	var (
 		categoryID     sql.NullString
@@ -1363,7 +1348,6 @@ func (h *ProductHandler) GetProductByID(w http.ResponseWriter, r *http.Request, 
 	rows, err := h.DB.Query(`
 		select
 			id,
-			code,
 			product_id,
 			combination,
 			sku,
@@ -1389,7 +1373,7 @@ func (h *ProductHandler) GetProductByID(w http.ResponseWriter, r *http.Request, 
 	defer rows.Close()
 
 	type tmpVar struct {
-		v       VariationOut
+		v       ProductVariation
 		p       sql.NullString
 		cp      sql.NullString
 		w       sql.NullString
@@ -1400,7 +1384,7 @@ func (h *ProductHandler) GetProductByID(w http.ResponseWriter, r *http.Request, 
 		ean     sql.NullString
 		details []byte
 	}
-	var variations []VariationOut
+	var variations []ProductVariation
 	var varIDs []string
 
 	for rows.Next() {
@@ -1408,7 +1392,6 @@ func (h *ProductHandler) GetProductByID(w http.ResponseWriter, r *http.Request, 
 
 		if err := rows.Scan(
 			&t.v.ID,
-			&t.v.Code,
 			&t.v.ProductID,
 			&t.comb,
 			&t.v.SKU,
@@ -1475,19 +1458,23 @@ func (h *ProductHandler) GetProductByID(w http.ResponseWriter, r *http.Request, 
 	}
 
 	// 3) busca imagens por variação (em lote) e associa
-	// ⚠️ Ajuste o nome/colunas da tabela conforme sua migration.
-	// Vou assumir: product_variation_images(id, tenant_id, variation_id, url)
 	imagesByVar := map[string][]VariationImageOut{}
 	if len(varIDs) > 0 {
 		imgRows, err := h.DB.Query(`
 			select
 				id,
 				variation_id,
-				url
+				url,
+				is_primary,
+				position,
+				description
 			from product_variation_images
 			where tenant_id = $1
-			  and variation_id = any($2)
-			order by variation_id asc
+			and variation_id = any($2)
+			order by variation_id asc,
+					is_primary desc,          -- primária primeiro
+					position asc nulls last,  -- depois ordena por posição
+					id asc
 		`, tenantID, pqArray(varIDs))
 		if err != nil {
 			http.Error(w, "erro ao buscar imagens: "+err.Error(), http.StatusInternalServerError)
@@ -1498,10 +1485,31 @@ func (h *ProductHandler) GetProductByID(w http.ResponseWriter, r *http.Request, 
 		for imgRows.Next() {
 			var img VariationImageOut
 			var variationID string
-			if err := imgRows.Scan(&img.ID, &variationID, &img.URL); err != nil {
+			var pos sql.NullInt32
+			var desc sql.NullString
+
+			if err := imgRows.Scan(
+				&img.ID,
+				&variationID,
+				&img.URL,
+				&img.IsPrimary,
+				&pos,
+				&desc,
+			); err != nil {
 				http.Error(w, "erro ao ler imagens: "+err.Error(), http.StatusInternalServerError)
 				return
 			}
+
+			if pos.Valid {
+				p := int(pos.Int32)
+				img.Position = &p
+			}
+
+			if desc.Valid {
+				d := desc.String
+				img.Desc = &d
+			}
+
 			imagesByVar[variationID] = append(imagesByVar[variationID], img)
 		}
 		if err := imgRows.Err(); err != nil {
@@ -1959,58 +1967,22 @@ func nullIfEmptyPtr(s *string) *string {
 	return nullIfEmpty(*s)
 }
 
-func mustJSON(m map[string]string) string {
-	if m == nil {
+func mustJSONRaw(raw json.RawMessage) string {
+	if len(raw) == 0 {
 		return "{}"
 	}
-	b, _ := json.Marshal(m)
-	return string(b)
-}
 
-// essas 2 funções assumem que a coluna é NUMERIC no banco
-func anyToString(v any) string {
-	if v == nil {
-		return ""
+	trimmed := strings.TrimSpace(string(raw))
+	if trimmed == "" || trimmed == "null" {
+		return "{}"
 	}
-	switch val := v.(type) {
-	case string:
-		return val
-	case float64:
-		return strconv.FormatFloat(val, 'f', -1, 64)
-	case float32:
-		return strconv.FormatFloat(float64(val), 'f', -1, 64)
-	case int:
-		return strconv.Itoa(val)
-	default:
-		return ""
-	}
-}
 
-func parseMoney(v string) *float64 {
-	s := strings.TrimSpace(strings.ReplaceAll(v, ",", "."))
-	if s == "" {
-		return nil
+	var js any
+	if err := json.Unmarshal(raw, &js); err != nil {
+		return "{}"
 	}
-	f, err := strconv.ParseFloat(s, 64)
-	if err != nil {
-		return nil
-	}
-	return &f
-}
 
-func parseMoneyPtr(v *string) *float64 {
-	if v == nil {
-		return nil
-	}
-	return parseMoney(*v)
-}
-
-func parseMoneyAny(v any) *float64 {
-	return parseMoney(anyToString(v))
-}
-
-func parseDecimalAny(v any) *float64 {
-	return parseMoney(anyToString(v))
+	return trimmed
 }
 
 func insertVariationImagesTX(tx *sql.Tx, tenantID, variationID string, imgs []VariationImageInput) error {
@@ -2081,4 +2053,23 @@ func insertVariationImagesTX(tx *sql.Tx, tenantID, variationID string, imgs []Va
 
 func pqArray(ids []string) interface{} {
 	return pq.Array(ids)
+}
+
+func normalizeNumericField(v any) (*string, error) {
+	if v == nil {
+		return nil, nil
+	}
+	switch t := v.(type) {
+	case string:
+		s := strings.TrimSpace(t)
+		if s == "" {
+			return nil, nil
+		}
+		return &s, nil
+	case float64:
+		s := fmt.Sprintf("%.2f", t)
+		return &s, nil
+	default:
+		return nil, fmt.Errorf("tipo inválido para campo numérico: %T", v)
+	}
 }

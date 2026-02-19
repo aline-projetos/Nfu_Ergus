@@ -10,6 +10,8 @@ import {
   getProductById,
   type ProductWizardCreateInput,
   type ProductWizardUpdateInput,
+  ProductVariationCreateInput,
+  VariationDetails,
 } from '@/lib/api/products';
 
 import {
@@ -31,12 +33,12 @@ import {
 } from '@/components/ui/dialog';
 import { VariationModel1Modal } from './VariationModal';
 import { VariationImageModal, type VariationImage } from './VariationImageModal';
-import { VariationDetailsModal, type VariationDetails } from './VariationDetailsModal';
+import { VariationDetailsModal } from './VariationDetailsModal';
 import { Badge } from '@/components/ui/badge';
 import { UNIT_OPTIONS } from './ProductUtils';
 
 interface FormData {
-  // ====== Produto (pai) ======
+  // ====== Produto (pai / agrupador) ======
   code: string; // só leitura no edit
   name: string;
 
@@ -55,23 +57,25 @@ interface FormData {
   videoLink: string;
   otherLinks: string;
 
-  // ====== Variação DEFAULT (Step 1) ======
+  // ====== Variação DEFAULT (base) ======
+  // esses campos representam a variação default e também os defaults do produto
   sku: string;
   ean: string;
+  reference: string;
 
-  costPrice: string; // cost_price
   salePrice: string; // price
+  costPrice: string; // cost_price
 
   weight: string;
   length: string;
   height: string;
   width: string;
 
-  // ====== UI (não vai pro wizard por enquanto) ======
-  reference: string;
-  stock: string;
+  active: boolean;
 
-  // Step 2 UI (não vai pro wizard por enquanto)
+  // ====== Campos só de UI (não vão direto pro wizard) ======
+  stock: string; // só exibição
+
   unit: string;
   shortDescription: string;
   longDescription: string;
@@ -79,13 +83,14 @@ interface FormData {
   metaTag: string;
   metaDescription: string;
 
-  // Step 3 UI (não vai pro wizard por enquanto)
+  // promoção (UI) – o que realmente vai pro backend é promotion_id
+  promotionId: string;
   promotionCode: string;
   promotionName: string;
   promotionStart: string;
   promotionEnd: string;
 
-  // Step 4 UI (não vai pro wizard por enquanto)
+  // descrições auxiliares fiscais (UI)
   ncmDescription: string;
   cestDescription: string;
   pisCode: string;
@@ -93,6 +98,7 @@ interface FormData {
   cofinsCode: string;
   cofinsDescription: string;
 }
+
 
 const initialFormData: FormData = {
   // pai
@@ -111,18 +117,19 @@ const initialFormData: FormData = {
   videoLink: '',
   otherLinks: '',
 
-  // default variation
+  // variação default / base
   sku: '',
   ean: '',
-  costPrice: '',
+  reference: '',
   salePrice: '',
+  costPrice: '',
   weight: '',
   length: '',
   height: '',
   width: '',
+  active: true,
 
   // UI
-  reference: '',
   stock: '',
   unit: '',
   shortDescription: '',
@@ -130,10 +137,13 @@ const initialFormData: FormData = {
   metaTitle: '',
   metaTag: '',
   metaDescription: '',
+
+  promotionId: '',
   promotionCode: '',
   promotionName: '',
   promotionStart: '',
   promotionEnd: '',
+
   ncmDescription: '',
   cestDescription: '',
   pisCode: '',
@@ -141,6 +151,7 @@ const initialFormData: FormData = {
   cofinsCode: '',
   cofinsDescription: '',
 };
+
 
 const steps = [
   { id: 1, label: 'Dados Principais' },
@@ -260,33 +271,59 @@ export function ProductWizard() {
     setProductImageIndex(0);
   };
 
-const navigateProductImage = (direction: number) => {
-  setProductImageIndex(prev => {
-    const list = orderedProductImages;
-    if (list.length <= 1) return 0;
-    let next = prev + direction;
-    if (next < 0) next = list.length - 1;
-    if (next >= list.length) next = 0;
-    return next;
-  });
-};
+  const navigateProductImage = (direction: number) => {
+    setProductImageIndex(prev => {
+      const list = orderedProductImages;
+      if (list.length <= 1) return 0;
+      let next = prev + direction;
+      if (next < 0) next = list.length - 1;
+      if (next >= list.length) next = 0;
+      return next;
+    });
+  };
 
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [detailsModalCombination, setDetailsModalCombination] = useState('');
+  const [detailsModalData, setDetailsModalData] = useState<VariationDetails>({});
 
   const openDetailsModal = (combination: string) => {
     setDetailsModalCombination(combination);
+
+    // pega a variação atual (se já existir)
+    const variation = savedVariations.find(v => v.combination === combination);
+
+    // base puxando do produto pai (formData)
+    const baseFromProduct: VariationDetails = {
+      descriptionShort: formData.shortDescription || '',
+      descriptionLong: formData.longDescription || '',
+      metaTitle: formData.metaTitle || '',
+      metaTag: formData.metaTag || '',
+      metaDescription: formData.metaDescription || '',
+      videoLink: formData.videoLink || '',
+      otherLinks: formData.otherLinks || '',
+    };
+
+    // se a variação já tiver detalhes, eles sobrescrevem o base
+    const merged: VariationDetails = {
+      ...baseFromProduct,
+      ...(variation?.details || {}),
+    };
+
+    setDetailsModalData(merged);
     setDetailsModalOpen(true);
   };
+
   const saveDetailsForVariation = (combination: string, details: VariationDetails) => {
     setSavedVariations(prev =>
       prev.map(v => (v.combination === combination ? { ...v, details } : v))
     );
   };
+
   const hasDetails = (details?: VariationDetails): boolean => {
     if (!details) return false;
     return Object.values(details).some(v => v && v.trim() !== '');
   };
+
 
   const openImageModal = (combination: string) => {
     setImageModalCombination(combination);
@@ -327,146 +364,222 @@ const navigateProductImage = (direction: number) => {
   // ========== helpers de mapeamento para o backend ==========
 
   const mapProductToFormData = (product: Product): FormData => {
-    const p = product as any;
-    const variations = Array.isArray(p.variations) ? p.variations : [];
-    const def = variations.find((v: any) => v.is_default) || variations[0] || null;
+  const p = product as any;
+  const variations = Array.isArray(p.variations) ? p.variations : [];
+  const def = variations.find((v: any) => v.is_default) || variations[0] || null;
 
-    return {
-      ...initialFormData,
+  return {
+    ...initialFormData,
 
-      // pai
-      code: p.code ?? '',
-      name: p.name ?? '',
-      categoryId: p.category_id ?? '',
-      supplierId: p.supplier_id ?? '',
-      manufacturerId: p.manufacturer_id ?? '',
-      taxGroupId: p.tax_group_id ?? '',
-      ncmId: p.ncm_id ?? '',
-      cestId: p.cest_id ?? '',
-      fiscalOrigin: p.fiscal_origin ?? '',
-      videoLink: p.video_link ?? '',
-      otherLinks: p.other_links ?? '',
+    // ====== Produto pai ======
+    code: p.code ?? '',
+    name: p.name ?? '',
 
-      // nomes (se você ainda não tem no backend, mantém vazio)
-      categoryName: '',
-      supplierName: '',
-      manufacturerName: '',
+    categoryId: p.category_id ?? '',
+    categoryName: '', // preenchido só na busca
+    supplierId: p.supplier_id ?? '',
+    supplierName: '',
+    manufacturerId: p.manufacturer_id ?? '',
+    manufacturerName: '',
 
-      // default variation
-      sku: def?.sku ?? '',
-      ean: def?.ean ?? '',
-      salePrice: def?.price != null ? String(def.price) : '',
-      costPrice: def?.cost_price != null ? String(def.cost_price) : '',
-      weight: def?.weight != null ? String(def.weight) : '',
-      length: def?.length != null ? String(def.length) : '',
-      height: def?.height != null ? String(def.height) : '',
-      width: def?.width != null ? String(def.width) : '',
-    };
+    taxGroupId: p.tax_group_id ?? '',
+    ncmId: p.ncm_id ?? '',
+    cestId: p.cest_id ?? '',
+    fiscalOrigin: p.fiscal_origin ?? '',
+
+    videoLink: p.video_link ?? '',
+    otherLinks: p.other_links ?? '',
+
+    // SEO / descrições (produto pai)
+    unit: p.unit ?? '',
+    shortDescription: p.short_description ?? '',
+    longDescription: p.long_description ?? '',
+    metaTitle: p.meta_title ?? '',
+    metaTag: p.meta_tag ?? '',
+    metaDescription: p.meta_description ?? '',
+
+    promotionId: p.promotion_id ?? '',
+    // promotionCode/Name/Start/End continuam só como UI
+    // (você pode preencher aqui se tiver isso salvo em outro lugar)
+
+    // ====== Variação default (se existir) ======
+    sku: def?.sku ?? '',
+    ean: def?.ean ?? '',
+    reference: p.reference ?? '',
+
+    salePrice:
+      def?.price != null
+        ? String(def.price)
+        : p.price != null
+        ? String(p.price)
+        : '',
+    costPrice:
+      def?.cost_price != null
+        ? String(def.cost_price)
+        : p.cost_price != null
+        ? String(p.cost_price)
+        : '',
+
+    weight:
+      def?.weight != null
+        ? String(def.weight)
+        : p.weight != null
+        ? String(p.weight)
+        : '',
+    length:
+      def?.length != null
+        ? String(def.length)
+        : p.length != null
+        ? String(p.length)
+        : '',
+    height:
+      def?.height != null
+        ? String(def.height)
+        : p.height != null
+        ? String(p.height)
+        : '',
+    width:
+      def?.width != null
+        ? String(def.width)
+        : p.width != null
+        ? String(p.width)
+        : '',
+
+    active:
+      def?.active != null
+        ? Boolean(def.active)
+        : p.active != null
+        ? Boolean(p.active)
+        : true,
+
+    // estoque é só visual por enquanto
+    stock: '',
+
+    // campos fiscais/descrições extras continuam vazios
+    ncmDescription: '',
+    cestDescription: '',
+    pisCode: '',
+    pisDescription: '',
+    cofinsCode: '',
+    cofinsDescription: '',
   };
+};
+
 
   // ====== payload wizard (novo modelo) ======
-  const buildCreatePayload = (data: FormData): ProductWizardCreateInput => {
-  const base = {
+  // ====== payload wizard (novo modelo) ======
+const buildCreatePayload = (data: FormData): ProductWizardCreateInput => {
+  // base = produto pai + campos herdáveis
+  const base: ProductWizardCreateInput = {
+    // produto pai
     name: data.name.trim(),
+
+    reference: data.reference.trim(),
+    sku: data.sku.trim(),
+    ean: data.ean?.trim() || null,
+
+    // herdáveis (defaults)
+    price: data.salePrice || null,
+    cost_price: data.costPrice || null,
+    weight: data.weight || null,
+    length: data.length || null,
+    height: data.height || null,
+    width: data.width || null,
+
+    active: data.active,
+
+    // descrições / SEO (snake_case pra bater com backend)
+    unit: data.unit || undefined,
+    short_description: data.shortDescription || undefined,
+    long_description: data.longDescription || undefined,
+    meta_title: data.metaTitle || undefined,
+    meta_tag: data.metaTag || undefined,
+    meta_description: data.metaDescription || undefined,
+
+    // vínculos
+    promotion_id: data.promotionId || null,
     category_id: data.categoryId || null,
     supplier_id: data.supplierId || null,
     manufacturer_id: data.manufacturerId || null,
 
+    // fiscais
     tax_group_id: data.taxGroupId || null,
     ncm_id: data.ncmId || null,
     cest_id: data.cestId || null,
     fiscal_origin: data.fiscalOrigin || null,
 
+    // mídia / links
     video_link: data.videoLink || null,
     other_links: data.otherLinks || null,
+
+    // imagens default do produto (variação default herda isso no backend)
+    default_images: productImages || [],
+
+    // variações virão logo abaixo
+    variations: [],
   };
 
   const parentImages = productImages || [];
 
-  // ✅ DEFAULT (produto simples)
-  const defaultVariation = {
-    sku: data.sku.trim(),
-    ean: data.ean?.trim() ? data.ean.trim() : null,
-
-    price: data.salePrice || null,
-    cost_price: data.costPrice || null,
-
-    weight: data.weight || null,
-    length: data.length || null,
-    height: data.height || null,
-    width: data.width || null,
-
-    active: true,
-    is_default: true,
-
-    images: productImages || [],
-
-    details: null,
-    combination: "DEFAULT", 
-    
-  };
-
-  // ✅ SEM grade -> só a default
-   if (!savedVariations || savedVariations.length === 0) {
-    const defaultVariation = {
+  // ===========================
+  // CASO 1 – SEM grade: produto simples
+  // ===========================
+  if (!savedVariations || savedVariations.length === 0) {
+    const defaultVariation: ProductVariationCreateInput = {
       sku: data.sku.trim(),
-      ean: data.ean?.trim() ? data.ean.trim() : null,
+      ean: data.ean?.trim() || null,
 
       price: data.salePrice || null,
       cost_price: data.costPrice || null,
-
       weight: data.weight || null,
       length: data.length || null,
       height: data.height || null,
       width: data.width || null,
 
-      active: true,
+      active: data.active,
       is_default: true,
 
-      combination: "DEFAULT",
+      combination: 'DEFAULT',
       details: null,
-
-      // 👇 continua mandando as imagens aqui também
       images: parentImages,
     };
 
     return {
       ...base,
-      default_images: parentImages,
       variations: [defaultVariation],
     };
   }
 
-  // ✅ COM grade -> NÃO envia DEFAULT
-  const mapped = savedVariations.map((v) => ({
+  // ===========================
+  // CASO 2 – COM grade: várias variações
+  // ===========================
+  const mapped: ProductVariationCreateInput[] = savedVariations.map((v) => ({
     sku: v.sku?.trim() || '',
-    ean: v.ean?.trim() ? v.ean.trim() : null,
+    ean: v.ean?.trim() || null,
 
+    // se não quiser sobrescrever, poderia mandar null aqui
     price: v.price || null,
+    // cost_price/dimensões podem ser herdados do pai → deixamos null/undefined
     cost_price: null,
-
-    // herda dimensões do pai (se quiser)
-    weight: data.weight || null,
-    length: data.length || null,
-    height: data.height || null,
-    width: data.width || null,
+    weight: null,
+    length: null,
+    height: null,
+    width: null,
 
     active: v.active ?? true,
-
-    // ✅ aqui pode vir do modal (se você já salva isso), senão a gente garante abaixo
     is_default: false,
 
     combination: v.combination || null,
-    details: (v.details || null) as any,
+    details: v.details || null,
     images: v.images || [],
   }));
 
   return {
     ...base,
-    default_images: parentImages,
     variations: mapped,
   };
 };
+
 
 const buildUpdatePayload = (data: FormData): ProductWizardUpdateInput => {
   return buildCreatePayload(data) as unknown as ProductWizardUpdateInput;
@@ -1732,13 +1845,16 @@ const buildUpdatePayload = (data: FormData): ProductWizardUpdateInput => {
                 )}
 
                 {/* Details Modal */}
-                <VariationDetailsModal
-                  open={detailsModalOpen}
-                  onClose={() => setDetailsModalOpen(false)}
-                  combination={detailsModalCombination}
-                  details={savedVariations.find(v => v.combination === detailsModalCombination)?.details || {}}
-                  onSave={(details) => saveDetailsForVariation(detailsModalCombination, details)}
-                />
+                {detailsModalOpen && (
+                  <VariationDetailsModal
+                    open={detailsModalOpen}
+                    onClose={() => setDetailsModalOpen(false)}
+                    combination={detailsModalCombination}
+                    details={detailsModalData}
+                    onSave={(details) => saveDetailsForVariation(detailsModalCombination, details)}
+                  />
+                )}
+
 
                 {/* Image Modal */}
                 <VariationImageModal

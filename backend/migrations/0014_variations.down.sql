@@ -39,27 +39,6 @@ DROP FUNCTION IF EXISTS enforce_product_variation_tenant_match;
 
 DROP TABLE IF EXISTS product_variations;
 
-
--- ============================================================
--- 5) Remover colunas adicionadas em products
--- ============================================================
-
-ALTER TABLE products
-  DROP COLUMN IF EXISTS reference,
-  DROP COLUMN IF EXISTS unit,
-  DROP COLUMN IF EXISTS short_description,
-  DROP COLUMN IF EXISTS long_description,
-  DROP COLUMN IF EXISTS meta_title,
-  DROP COLUMN IF EXISTS meta_tag,
-  DROP COLUMN IF EXISTS meta_description,
-  DROP COLUMN IF EXISTS video_link,
-  DROP COLUMN IF EXISTS other_links,
-  DROP COLUMN IF EXISTS weight,
-  DROP COLUMN IF EXISTS length,
-  DROP COLUMN IF EXISTS height,
-  DROP COLUMN IF EXISTS width;
-
-
 -- ============================================================
 -- Observação
 -- ============================================================

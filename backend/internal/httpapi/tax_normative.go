@@ -3,7 +3,6 @@ package httpapi
 import (
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -920,13 +919,4 @@ func (h *TaxHandler) handleSearchCFOP(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(items)
-}
-
-// -----------------------------------------------------------------------------
-// (Opcional) mensagem melhor pra unique violation (se você quiser usar)
-// -----------------------------------------------------------------------------
-
-func wrapUniqueErr(prefix string, err error) error {
-	// sem dependência de driver específico; mantém simples
-	return fmt.Errorf("%s: %w", prefix, err)
 }

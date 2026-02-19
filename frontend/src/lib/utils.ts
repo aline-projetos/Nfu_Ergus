@@ -14,15 +14,17 @@ export function getBaseUrl() {
 
 export function getAuthHeaders() {
   const token = localStorage.getItem("ergus_token");
-  
+  const isAdmin = JSON.parse(localStorage.getItem('ergus_user') || '{}').isSuperAdmin;
   const tenantId = JSON.parse(localStorage.getItem('ergus_user') || '{}').tenantId;
 
   if (!token) {
     throw new Error('Usuário não autenticado');
   }
-  if (!tenantId) {
-    throw new Error('Tenant não definido');
-  }
+  if (!isAdmin) {
+    if (!tenantId) {
+      throw new Error('Tenant não definido');
+    }
+  }  
 
   return {
     Authorization: `Bearer ${token}`,

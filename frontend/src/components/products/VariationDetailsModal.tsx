@@ -9,16 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-
-export interface VariationDetails {
-  descriptionShort?: string;
-  descriptionLong?: string;
-  metaTitle?: string;
-  metaTag?: string;
-  metaDescription?: string;
-  videoLink?: string;
-  otherLinks?: string;
-}
+import { VariationDetails } from '@/lib/api/products';
 
 interface Props {
   open: boolean;

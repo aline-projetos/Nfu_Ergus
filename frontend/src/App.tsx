@@ -46,6 +46,8 @@ import EditTaxGroup from "./pages/tax/EditTaxGroup";
 import Ncm from "./pages/tax/Ncm";
 import NewNcm from "./pages/tax/NewNcm";
 import EditNcm from "./pages/tax/EditNcm";
+import AccessPermissionsPage from "./pages/accessControl/accessPermissionPage";
+import AccessProfilesPage from "./pages/accessControl/accessProfilePage";
 
 const App = () => {
   return (
@@ -91,6 +93,9 @@ const App = () => {
             path="/cadastros/admin/clientes/:id/editar"
             element={<EditClient />}
           />
+
+          <Route path="/cadastros/admin/permissoes" element={<AccessPermissionsPage />} />
+          <Route path="/cadastros/admin/perfis" element={<AccessProfilesPage />} />
 
           <Route path="/cadastros/admin/usuarios" element={<Users />} />
           <Route
