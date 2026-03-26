@@ -1,0 +1,3659 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "API do ERP erGus (multi-tenant, categorias, produtos, etc).",
+        "title": "erGus API",
+        "contact": {},
+        "version": "1.0"
+    },
+    "host": "localhost:8080",
+    "basePath": "/",
+    "paths": {
+        "/auth/login": {
+            "post": {
+                "description": "Autentica o usuário e retorna um token de sessão",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Login do usuário",
+                "parameters": [
+                    {
+                        "description": "Credenciais de login",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.LoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.LoginResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "JSON inválido ou campos obrigatórios",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Usuário ou senha inválidos",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "405": {
+                        "description": "Método não permitido",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno ao autenticar",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/categories": {
+            "get": {
+                "description": "Lista categorias do tenant com paginação e busca opcional por código ou nome",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Categories"
+                ],
+                "summary": "Lista categorias",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Busca por code exato ou name contendo (case-insensitive)",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Página (default 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Tamanho da página (default 50, max 200)",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/httpapi.Category"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Tenant inválido",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/categories/by-code": {
+            "get": {
+                "description": "Retorna uma categoria pelo code (ex: CAT001) dentro do tenant",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Categories"
+                ],
+                "summary": "Busca categoria por código",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Código da categoria (ex: CAT001)",
+                        "name": "code",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Category"
+                        }
+                    },
+                    "400": {
+                        "description": "Parâmetro code obrigatório / tenant inválido",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Categoria não encontrada",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/categories/duplicate/{id}": {
+            "post": {
+                "description": "Duplica uma categoria por ID, gerando novo ID e novo code CAT### no mesmo tenant",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Categories"
+                ],
+                "summary": "Duplica categoria",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "ID da categoria a duplicar",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Category"
+                        }
+                    },
+                    "400": {
+                        "description": "ID não informado / tenant inválido",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Categoria não encontrada",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/categories/{id}": {
+            "get": {
+                "description": "Retorna uma categoria pelo ID dentro do tenant",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Categories"
+                ],
+                "summary": "Busca categoria por ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "ID da categoria",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Category"
+                        }
+                    },
+                    "400": {
+                        "description": "Tenant inválido",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Categoria não encontrada",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Atualiza os campos de uma categoria pelo ID dentro do tenant",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Categories"
+                ],
+                "summary": "Atualiza categoria",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "ID da categoria",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados para atualização (name obrigatório)",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.CategoryUpdateInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Category"
+                        }
+                    },
+                    "400": {
+                        "description": "Erro de validação / JSON inválido / tenant inválido",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Categoria não encontrada",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Exclui uma categoria pelo ID dentro do tenant",
+                "tags": [
+                    "Categories"
+                ],
+                "summary": "Exclui categoria",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "ID da categoria",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Sem conteúdo",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Tenant inválido",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Categoria não encontrada",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/health": {
+            "get": {
+                "description": "Retorna status simples da API erGus",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Health"
+                ],
+                "summary": "Healthcheck da API",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.HealthResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/lookups/cest": {
+            "get": {
+                "description": "Busca CEST por code ou description (mínimo 3 caracteres). Retorna até 50 itens.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tax Lookups"
+                ],
+                "summary": "Busca CEST (lookup)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Texto para busca (mínimo 3 caracteres)",
+                        "name": "q",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/httpapi.CEST"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/lookups/ncm": {
+            "get": {
+                "description": "Busca NCM por code ou description (mínimo 3 caracteres). Retorna até 50 itens.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tax Lookups"
+                ],
+                "summary": "Busca NCM (lookup)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Texto para busca (mínimo 3 caracteres)",
+                        "name": "q",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/httpapi.NCM"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/manufacturers": {
+            "get": {
+                "description": "Lista fabricantes do tenant com paginação e busca opcional por código ou nome",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Manufacturers"
+                ],
+                "summary": "Lista fabricantes",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Busca por codigo exato ou nome contendo (case-insensitive)",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Página (default 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Tamanho da página (default 50, max 200)",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/httpapi.Manufacturer"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Tenant inválido",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Cria um novo fabricante para o tenant, gerando codigo FAB### automaticamente",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Manufacturers"
+                ],
+                "summary": "Cria fabricante",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados do fabricante (nome, tipo, cidade, uf obrigatórios). ativo opcional",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ManufacturerInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Manufacturer"
+                        }
+                    },
+                    "400": {
+                        "description": "Erro de validação / JSON inválido / tenant inválido",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/manufacturers/{id}": {
+            "get": {
+                "description": "Retorna um fabricante específico pelo ID dentro do tenant",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Manufacturers"
+                ],
+                "summary": "Busca fabricante por ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "ID do fabricante",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Manufacturer"
+                        }
+                    },
+                    "400": {
+                        "description": "Tenant inválido",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Fabricante não encontrado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Atualiza os dados de um fabricante pelo ID dentro do tenant",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Manufacturers"
+                ],
+                "summary": "Atualiza fabricante",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "ID do fabricante",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados para atualização (nome, tipo, cidade, uf obrigatórios)",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ManufacturerUpdateInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Manufacturer"
+                        }
+                    },
+                    "400": {
+                        "description": "Erro de validação / JSON inválido / tenant inválido",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Fabricante não encontrado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Remove um fabricante pelo ID dentro do tenant",
+                "tags": [
+                    "Manufacturers"
+                ],
+                "summary": "Exclui fabricante",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "ID do fabricante",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Sem conteúdo",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Tenant inválido",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Fabricante não encontrado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/products": {
+            "get": {
+                "description": "Retorna todos os produtos do tenant ordenados por nome",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Products"
+                ],
+                "summary": "Lista produtos",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/httpapi.Product"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Tenant inválido",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Cria um novo produto para o tenant, gerando code PROD### automaticamente",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Products"
+                ],
+                "summary": "Cria produto",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados do produto (name obrigatório)",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ProductCreateInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Product"
+                        }
+                    },
+                    "400": {
+                        "description": "Erro de validação / JSON inválido / tenant inválido",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/products/by-code": {
+            "get": {
+                "description": "Retorna um produto pelo código (ex: PROD001) dentro do tenant",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Products"
+                ],
+                "summary": "Busca produto por código",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Código do produto (ex: PROD001)",
+                        "name": "code",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Product"
+                        }
+                    },
+                    "400": {
+                        "description": "Parâmetro code obrigatório / tenant inválido",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Produto não encontrado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/products/duplicate/{id}": {
+            "post": {
+                "description": "Duplica um produto pelo ID, gerando novo ID e novo code PROD###",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Products"
+                ],
+                "summary": "Duplica produto",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "ID do produto a duplicar",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Product"
+                        }
+                    },
+                    "400": {
+                        "description": "ID não informado / tenant inválido",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Produto não encontrado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/products/{id}": {
+            "get": {
+                "description": "Retorna um produto específico pelo ID dentro do tenant",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Products"
+                ],
+                "summary": "Busca produto por ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "ID do produto",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Product"
+                        }
+                    },
+                    "400": {
+                        "description": "Tenant inválido",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Produto não encontrado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Atualiza os dados de um produto pelo ID dentro do tenant",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Products"
+                ],
+                "summary": "Atualiza produto",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "ID do produto",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados para atualização (name obrigatório)",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.ProductUpdateInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Product"
+                        }
+                    },
+                    "400": {
+                        "description": "Erro de validação / JSON inválido / tenant inválido",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Produto não encontrado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Remove um produto pelo ID dentro do tenant",
+                "tags": [
+                    "Products"
+                ],
+                "summary": "Exclui produto",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "ID do produto",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Sem conteúdo",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Tenant inválido",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Produto não encontrado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/promotions": {
+            "get": {
+                "description": "Lista promoções do tenant",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Promotions"
+                ],
+                "summary": "Lista promoções",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/httpapi.Promotion"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Tenant inválido",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Cria uma nova promoção para o tenant, gerando code PROMO### e vinculando produtos/categorias (transaction)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Promotions"
+                ],
+                "summary": "Cria promoção",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados da promoção (name e type obrigatórios)",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Promotion"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Promotion"
+                        }
+                    },
+                    "400": {
+                        "description": "Erro de validação / JSON inválido / tenant inválido",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/promotions/{id}": {
+            "get": {
+                "description": "Retorna uma promoção específica pelo ID dentro do tenant",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Promotions"
+                ],
+                "summary": "Busca promoção por ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "ID da promoção",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Promotion"
+                        }
+                    },
+                    "400": {
+                        "description": "Tenant inválido",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Promoção não encontrada",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Atualiza uma promoção e recria os vínculos de produtos/categorias (transaction)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Promotions"
+                ],
+                "summary": "Atualiza promoção",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "ID da promoção",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados para atualização",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.PromotionUpdateInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Promotion"
+                        }
+                    },
+                    "400": {
+                        "description": "Erro de validação / JSON inválido / tenant inválido",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Promoção não encontrada",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Remove uma promoção pelo ID dentro do tenant",
+                "tags": [
+                    "Promotions"
+                ],
+                "summary": "Exclui promoção",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "ID da promoção",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Sem conteúdo",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Tenant inválido",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Promoção não encontrada",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/suppliers": {
+            "get": {
+                "description": "Lista fornecedores do tenant (com paginação e busca por código exato ou nome contendo q)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Suppliers"
+                ],
+                "summary": "Lista fornecedores",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtro: codigo exato OU nome contendo (case-insensitive)",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Página (default 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Tamanho da página (default 50, máx 200)",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/httpapi.Supplier"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Tenant inválido",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Cria um novo fornecedor para o tenant, gerando codigo FORN###",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Suppliers"
+                ],
+                "summary": "Cria fornecedor",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados do fornecedor (nome, tipo, cidade, uf obrigatórios)",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.SupplierInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Supplier"
+                        }
+                    },
+                    "400": {
+                        "description": "Erro de validação / JSON inválido / tenant inválido",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/suppliers/{id}": {
+            "get": {
+                "description": "Retorna um fornecedor específico pelo ID dentro do tenant",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Suppliers"
+                ],
+                "summary": "Busca fornecedor por ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "ID do fornecedor",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Supplier"
+                        }
+                    },
+                    "400": {
+                        "description": "Tenant inválido",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Fornecedor não encontrado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Atualiza um fornecedor existente pelo ID dentro do tenant",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Suppliers"
+                ],
+                "summary": "Atualiza fornecedor",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "ID do fornecedor",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados para atualização (nome, tipo, cidade, uf obrigatórios)",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.SupplierUpdateInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Supplier"
+                        }
+                    },
+                    "400": {
+                        "description": "Erro de validação / JSON inválido / tenant inválido",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Fornecedor não encontrado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Remove um fornecedor pelo ID dentro do tenant",
+                "tags": [
+                    "Suppliers"
+                ],
+                "summary": "Exclui fornecedor",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "ID do fornecedor",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Sem conteúdo",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Tenant inválido",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Fornecedor não encontrado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/tax-groups": {
+            "get": {
+                "description": "Lista grupos de tributação do tenant (com paginação e busca por code exato ou name contendo q)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tax"
+                ],
+                "summary": "Lista grupos de tributação",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtro: code exato OU name contendo (case-insensitive)",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Página (default 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Tamanho da página (default 50, máx 200)",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/httpapi.TaxGroup"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Tenant inválido",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Cria um novo grupo de tributação para o tenant, gerando code TXG###",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tax"
+                ],
+                "summary": "Cria grupo de tributação",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados do grupo (name obrigatório)",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.TaxGroupInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.TaxGroup"
+                        }
+                    },
+                    "400": {
+                        "description": "Erro de validação / JSON inválido / tenant inválido",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/tax-groups/{id}": {
+            "get": {
+                "description": "Retorna um grupo de tributação específico pelo ID dentro do tenant",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tax"
+                ],
+                "summary": "Busca grupo de tributação por ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "ID do grupo de tributação",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.TaxGroup"
+                        }
+                    },
+                    "400": {
+                        "description": "Tenant inválido",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Grupo de tributação não encontrado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Atualiza um grupo de tributação existente pelo ID dentro do tenant",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tax"
+                ],
+                "summary": "Atualiza grupo de tributação",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "ID do grupo de tributação",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados para atualização (name obrigatório)",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.TaxGroupInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.TaxGroup"
+                        }
+                    },
+                    "400": {
+                        "description": "Erro de validação / JSON inválido / tenant inválido",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Grupo de tributação não encontrado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Remove um grupo de tributação pelo ID dentro do tenant",
+                "tags": [
+                    "Tax"
+                ],
+                "summary": "Exclui grupo de tributação",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "ID do grupo de tributação",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Sem conteúdo",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Tenant inválido",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Grupo de tributação não encontrado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/tenants": {
+            "get": {
+                "description": "Retorna lista de tenants ordenada por nome",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tenants"
+                ],
+                "summary": "Lista tenants",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/httpapi.Tenant"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Cria um novo tenant (CPF/CNPJ normalizado) — apenas super admin",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tenants"
+                ],
+                "summary": "Cria tenant",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados do tenant (name, document, documentType). ativo opcional",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.TenantInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Tenant"
+                        }
+                    },
+                    "400": {
+                        "description": "JSON inválido ou validação falhou",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Apenas super administrador",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "409": {
+                        "description": "Document já cadastrado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/tenants/{id}": {
+            "get": {
+                "description": "Retorna um tenant pelo ID — apenas super admin",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tenants"
+                ],
+                "summary": "Busca tenant por ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "ID do tenant (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Tenant"
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Apenas super administrador",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Tenant não encontrado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Atualiza um tenant pelo ID — apenas super admin",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tenants"
+                ],
+                "summary": "Atualiza tenant",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "ID do tenant (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados do tenant (name, document, documentType). ativo opcional",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.TenantInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Tenant"
+                        }
+                    },
+                    "400": {
+                        "description": "JSON inválido ou validação falhou",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Apenas super administrador",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Tenant não encontrado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "409": {
+                        "description": "Document já cadastrado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Marca o tenant como ativo=false — apenas super admin",
+                "tags": [
+                    "Tenants"
+                ],
+                "summary": "Inativa tenant (soft delete)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "ID do tenant (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Sem conteúdo",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Não autenticado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Apenas super administrador",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Tenant não encontrado",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "httpapi.CEST": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "ncmCode": {
+                    "type": "string"
+                }
+            }
+        },
+        "httpapi.Category": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "metaDescription": {
+                    "type": "string"
+                },
+                "metaTag": {
+                    "type": "string"
+                },
+                "metaTitle": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "parentCode": {
+                    "type": "string"
+                },
+                "parentName": {
+                    "type": "string"
+                },
+                "siteLink": {
+                    "type": "string"
+                },
+                "siteOrder": {
+                    "type": "integer"
+                },
+                "tenantId": {
+                    "type": "string"
+                }
+            }
+        },
+        "httpapi.CategoryUpdateInput": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "metaDescription": {
+                    "type": "string"
+                },
+                "metaTag": {
+                    "type": "string"
+                },
+                "metaTitle": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "parentCode": {
+                    "type": "string"
+                },
+                "parentName": {
+                    "type": "string"
+                },
+                "siteLink": {
+                    "type": "string"
+                },
+                "siteOrder": {
+                    "type": "integer"
+                }
+            }
+        },
+        "httpapi.HealthResponse": {
+            "type": "object",
+            "properties": {
+                "service": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "timestamp": {
+                    "type": "string"
+                }
+            }
+        },
+        "httpapi.LoginRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                }
+            }
+        },
+        "httpapi.LoginResponse": {
+            "type": "object",
+            "properties": {
+                "token": {
+                    "type": "string"
+                },
+                "user": {
+                    "$ref": "#/definitions/httpapi.LoginUserInfo"
+                }
+            }
+        },
+        "httpapi.LoginUserInfo": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "isSuperAdmin": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "tenantId": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "httpapi.Manufacturer": {
+            "type": "object",
+            "properties": {
+                "ativo": {
+                    "type": "boolean"
+                },
+                "bairro": {
+                    "type": "string"
+                },
+                "cep": {
+                    "description": "Endereço / localização",
+                    "type": "string"
+                },
+                "cidade": {
+                    "type": "string"
+                },
+                "cnpj": {
+                    "type": "string"
+                },
+                "codigo": {
+                    "type": "string"
+                },
+                "codigoCidade": {
+                    "type": "string"
+                },
+                "complemento": {
+                    "type": "string"
+                },
+                "contatoPrincipalEmail": {
+                    "type": "string"
+                },
+                "contatoPrincipalNome": {
+                    "description": "Contato principal",
+                    "type": "string"
+                },
+                "contatoPrincipalTelefone": {
+                    "type": "string"
+                },
+                "contatoSecundarioEmail": {
+                    "type": "string"
+                },
+                "contatoSecundarioNome": {
+                    "description": "Contato secundário",
+                    "type": "string"
+                },
+                "contatoSecundarioTelefone": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "inscricao_estadual": {
+                    "type": "string"
+                },
+                "logradouro": {
+                    "type": "string"
+                },
+                "nome": {
+                    "type": "string"
+                },
+                "numero": {
+                    "type": "string"
+                },
+                "observacoes": {
+                    "type": "string"
+                },
+                "tenantId": {
+                    "type": "string"
+                },
+                "tipo": {
+                    "description": "\"fisica\" | \"juridica\"",
+                    "type": "string"
+                },
+                "uf": {
+                    "type": "string"
+                }
+            }
+        },
+        "httpapi.ManufacturerInput": {
+            "type": "object",
+            "properties": {
+                "ativo": {
+                    "type": "boolean"
+                },
+                "bairro": {
+                    "type": "string"
+                },
+                "cep": {
+                    "type": "string"
+                },
+                "cidade": {
+                    "type": "string"
+                },
+                "cnpj": {
+                    "type": "string"
+                },
+                "codigoCidade": {
+                    "type": "string"
+                },
+                "complemento": {
+                    "type": "string"
+                },
+                "contatoPrincipalEmail": {
+                    "type": "string"
+                },
+                "contatoPrincipalNome": {
+                    "type": "string"
+                },
+                "contatoPrincipalTelefone": {
+                    "type": "string"
+                },
+                "contatoSecundarioEmail": {
+                    "type": "string"
+                },
+                "contatoSecundarioNome": {
+                    "type": "string"
+                },
+                "contatoSecundarioTelefone": {
+                    "type": "string"
+                },
+                "inscricao_estadual": {
+                    "type": "string"
+                },
+                "logradouro": {
+                    "type": "string"
+                },
+                "nome": {
+                    "type": "string"
+                },
+                "numero": {
+                    "type": "string"
+                },
+                "observacoes": {
+                    "type": "string"
+                },
+                "tipo": {
+                    "description": "\"fisica\" | \"juridica\"",
+                    "type": "string"
+                },
+                "uf": {
+                    "type": "string"
+                }
+            }
+        },
+        "httpapi.ManufacturerUpdateInput": {
+            "type": "object",
+            "properties": {
+                "ativo": {
+                    "type": "boolean"
+                },
+                "bairro": {
+                    "type": "string"
+                },
+                "cep": {
+                    "type": "string"
+                },
+                "cidade": {
+                    "type": "string"
+                },
+                "cnpj": {
+                    "type": "string"
+                },
+                "codigoCidade": {
+                    "type": "string"
+                },
+                "complemento": {
+                    "type": "string"
+                },
+                "contatoPrincipalEmail": {
+                    "type": "string"
+                },
+                "contatoPrincipalNome": {
+                    "type": "string"
+                },
+                "contatoPrincipalTelefone": {
+                    "type": "string"
+                },
+                "contatoSecundarioEmail": {
+                    "type": "string"
+                },
+                "contatoSecundarioNome": {
+                    "type": "string"
+                },
+                "contatoSecundarioTelefone": {
+                    "type": "string"
+                },
+                "inscricao_estadual": {
+                    "type": "string"
+                },
+                "logradouro": {
+                    "type": "string"
+                },
+                "nome": {
+                    "type": "string"
+                },
+                "numero": {
+                    "type": "string"
+                },
+                "observacoes": {
+                    "type": "string"
+                },
+                "tipo": {
+                    "description": "\"fisica\" | \"juridica\"",
+                    "type": "string"
+                },
+                "uf": {
+                    "type": "string"
+                }
+            }
+        },
+        "httpapi.NCM": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "exVersion": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                }
+            }
+        },
+        "httpapi.Product": {
+            "type": "object",
+            "properties": {
+                "category_id": {
+                    "type": "string"
+                },
+                "cest_id": {
+                    "description": "FK cest_codes.id",
+                    "type": "string"
+                },
+                "code": {
+                    "type": "string"
+                },
+                "fiscal_origin": {
+                    "description": "enum fiscal_origin_type ('0'..'8')",
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "manufacturer_id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "ncm_id": {
+                    "description": "FK ncm_codes.id",
+                    "type": "string"
+                },
+                "supplier_id": {
+                    "type": "string"
+                },
+                "tax_group_id": {
+                    "description": "FK tax_groups.id",
+                    "type": "string"
+                },
+                "tenant_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "httpapi.ProductCreateInput": {
+            "type": "object",
+            "properties": {
+                "category_id": {
+                    "type": "string"
+                },
+                "cest_id": {
+                    "type": "string"
+                },
+                "fiscal_origin": {
+                    "description": "se vier nil, vamos assumir \"0\"",
+                    "type": "string"
+                },
+                "manufacturer_id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "ncm_id": {
+                    "type": "string"
+                },
+                "supplier_id": {
+                    "type": "string"
+                },
+                "tax_group_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "httpapi.ProductUpdateInput": {
+            "type": "object",
+            "properties": {
+                "category_id": {
+                    "type": "string"
+                },
+                "cest_id": {
+                    "type": "string"
+                },
+                "fiscal_origin": {
+                    "type": "string"
+                },
+                "manufacturer_id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "ncm_id": {
+                    "type": "string"
+                },
+                "supplier_id": {
+                    "type": "string"
+                },
+                "tax_group_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "httpapi.Promotion": {
+            "type": "object",
+            "properties": {
+                "active": {
+                    "type": "boolean"
+                },
+                "adjust_cents": {
+                    "type": "boolean"
+                },
+                "categories": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "code": {
+                    "type": "string"
+                },
+                "end_date": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "products": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "start_date": {
+                    "type": "string"
+                },
+                "tenant_id": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "use_percentage": {
+                    "type": "boolean"
+                },
+                "value": {
+                    "type": "number"
+                },
+                "value_adjustment": {
+                    "type": "number"
+                }
+            }
+        },
+        "httpapi.PromotionUpdateInput": {
+            "type": "object",
+            "properties": {
+                "active": {
+                    "type": "boolean"
+                },
+                "adjust_cents": {
+                    "type": "boolean"
+                },
+                "categories": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "end_date": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "products": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "start_date": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "use_percentage": {
+                    "type": "boolean"
+                },
+                "value": {
+                    "type": "number"
+                },
+                "value_adjustment": {
+                    "type": "number"
+                }
+            }
+        },
+        "httpapi.Supplier": {
+            "type": "object",
+            "properties": {
+                "ativo": {
+                    "type": "boolean"
+                },
+                "bairro": {
+                    "type": "string"
+                },
+                "cep": {
+                    "description": "Contato secundário / endereço",
+                    "type": "string"
+                },
+                "cidade": {
+                    "type": "string"
+                },
+                "cnpj": {
+                    "type": "string"
+                },
+                "codigo": {
+                    "type": "string"
+                },
+                "codigo_cidade": {
+                    "description": "Localização",
+                    "type": "string"
+                },
+                "complemento": {
+                    "type": "string"
+                },
+                "cpf": {
+                    "type": "string"
+                },
+                "email_contato_principal": {
+                    "type": "string"
+                },
+                "email_contato_secundario": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "inscricao_estadual": {
+                    "type": "string"
+                },
+                "logradouro": {
+                    "type": "string"
+                },
+                "nome": {
+                    "type": "string"
+                },
+                "nome_contato_principal": {
+                    "description": "Contato principal",
+                    "type": "string"
+                },
+                "nome_contato_secundario": {
+                    "type": "string"
+                },
+                "numero": {
+                    "type": "string"
+                },
+                "observacoes": {
+                    "description": "Outros",
+                    "type": "string"
+                },
+                "rg": {
+                    "type": "string"
+                },
+                "telefone_contato_principal": {
+                    "type": "string"
+                },
+                "telefone_contato_secundario": {
+                    "type": "string"
+                },
+                "tenantId": {
+                    "type": "string"
+                },
+                "tipo": {
+                    "description": "\"fisica\" | \"juridica\"",
+                    "type": "string"
+                },
+                "uf": {
+                    "type": "string"
+                }
+            }
+        },
+        "httpapi.SupplierInput": {
+            "type": "object",
+            "properties": {
+                "ativo": {
+                    "type": "boolean"
+                },
+                "bairro": {
+                    "type": "string"
+                },
+                "cep": {
+                    "type": "string"
+                },
+                "cidade": {
+                    "type": "string"
+                },
+                "cnpj": {
+                    "type": "string"
+                },
+                "codigo_cidade": {
+                    "type": "string"
+                },
+                "complemento": {
+                    "type": "string"
+                },
+                "cpf": {
+                    "type": "string"
+                },
+                "email_contato_principal": {
+                    "type": "string"
+                },
+                "email_contato_secundario": {
+                    "type": "string"
+                },
+                "inscricao_estadual": {
+                    "type": "string"
+                },
+                "logradouro": {
+                    "type": "string"
+                },
+                "nome": {
+                    "type": "string"
+                },
+                "nome_contato_principal": {
+                    "type": "string"
+                },
+                "nome_contato_secundario": {
+                    "type": "string"
+                },
+                "numero": {
+                    "type": "string"
+                },
+                "observacoes": {
+                    "type": "string"
+                },
+                "rg": {
+                    "type": "string"
+                },
+                "telefone_contato_principal": {
+                    "type": "string"
+                },
+                "telefone_contato_secundario": {
+                    "type": "string"
+                },
+                "tipo": {
+                    "description": "\"fisica\" | \"juridica\"",
+                    "type": "string"
+                },
+                "uf": {
+                    "type": "string"
+                }
+            }
+        },
+        "httpapi.SupplierUpdateInput": {
+            "type": "object",
+            "properties": {
+                "ativo": {
+                    "type": "boolean"
+                },
+                "bairro": {
+                    "type": "string"
+                },
+                "cep": {
+                    "type": "string"
+                },
+                "cidade": {
+                    "type": "string"
+                },
+                "cnpj": {
+                    "type": "string"
+                },
+                "codigo_cidade": {
+                    "type": "string"
+                },
+                "complemento": {
+                    "type": "string"
+                },
+                "cpf": {
+                    "type": "string"
+                },
+                "email_contato_principal": {
+                    "type": "string"
+                },
+                "email_contato_secundario": {
+                    "type": "string"
+                },
+                "inscricao_estadual": {
+                    "type": "string"
+                },
+                "logradouro": {
+                    "type": "string"
+                },
+                "nome": {
+                    "type": "string"
+                },
+                "nome_contato_principal": {
+                    "type": "string"
+                },
+                "nome_contato_secundario": {
+                    "type": "string"
+                },
+                "numero": {
+                    "type": "string"
+                },
+                "observacoes": {
+                    "type": "string"
+                },
+                "rg": {
+                    "type": "string"
+                },
+                "telefone_contato_principal": {
+                    "type": "string"
+                },
+                "telefone_contato_secundario": {
+                    "type": "string"
+                },
+                "tipo": {
+                    "description": "\"fisica\" | \"juridica\"",
+                    "type": "string"
+                },
+                "uf": {
+                    "type": "string"
+                }
+            }
+        },
+        "httpapi.TaxGroup": {
+            "type": "object",
+            "properties": {
+                "TipoProduto": {
+                    "description": "ex: revenda, industrializacao, servico",
+                    "type": "string"
+                },
+                "active": {
+                    "type": "boolean"
+                },
+                "code": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "regime": {
+                    "description": "ex: simples_nacional, lucro_presumido",
+                    "type": "string"
+                },
+                "tenantId": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "useICMSST": {
+                    "type": "boolean"
+                },
+                "useISS": {
+                    "type": "boolean"
+                },
+                "usePISCOFINS": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "httpapi.TaxGroupInput": {
+            "type": "object",
+            "properties": {
+                "TipoProduto": {
+                    "type": "string"
+                },
+                "active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "regime": {
+                    "type": "string"
+                },
+                "useICMSST": {
+                    "type": "boolean"
+                },
+                "useISS": {
+                    "type": "boolean"
+                },
+                "usePISCOFINS": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "httpapi.Tenant": {
+            "type": "object",
+            "properties": {
+                "ativo": {
+                    "type": "boolean"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "document": {
+                    "type": "string"
+                },
+                "documentType": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "httpapi.TenantInput": {
+            "type": "object",
+            "properties": {
+                "ativo": {
+                    "description": "pointer pra diferenciar não enviado x enviado",
+                    "type": "boolean"
+                },
+                "document": {
+                    "type": "string"
+                },
+                "documentType": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        }
+    }
+}

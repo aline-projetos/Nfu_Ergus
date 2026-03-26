@@ -1,0 +1,2461 @@
+basePath: /
+definitions:
+  httpapi.CEST:
+    properties:
+      code:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      ncmCode:
+        type: string
+    type: object
+  httpapi.Category:
+    properties:
+      code:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      metaDescription:
+        type: string
+      metaTag:
+        type: string
+      metaTitle:
+        type: string
+      name:
+        type: string
+      parentCode:
+        type: string
+      parentName:
+        type: string
+      siteLink:
+        type: string
+      siteOrder:
+        type: integer
+      tenantId:
+        type: string
+    type: object
+  httpapi.CategoryUpdateInput:
+    properties:
+      description:
+        type: string
+      metaDescription:
+        type: string
+      metaTag:
+        type: string
+      metaTitle:
+        type: string
+      name:
+        type: string
+      parentCode:
+        type: string
+      parentName:
+        type: string
+      siteLink:
+        type: string
+      siteOrder:
+        type: integer
+    type: object
+  httpapi.HealthResponse:
+    properties:
+      service:
+        type: string
+      status:
+        type: string
+      timestamp:
+        type: string
+    type: object
+  httpapi.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    type: object
+  httpapi.LoginResponse:
+    properties:
+      token:
+        type: string
+      user:
+        $ref: '#/definitions/httpapi.LoginUserInfo'
+    type: object
+  httpapi.LoginUserInfo:
+    properties:
+      email:
+        type: string
+      id:
+        type: string
+      isSuperAdmin:
+        type: boolean
+      name:
+        type: string
+      tenantId:
+        type: string
+      type:
+        type: string
+    type: object
+  httpapi.Manufacturer:
+    properties:
+      ativo:
+        type: boolean
+      bairro:
+        type: string
+      cep:
+        description: Endereço / localização
+        type: string
+      cidade:
+        type: string
+      cnpj:
+        type: string
+      codigo:
+        type: string
+      codigoCidade:
+        type: string
+      complemento:
+        type: string
+      contatoPrincipalEmail:
+        type: string
+      contatoPrincipalNome:
+        description: Contato principal
+        type: string
+      contatoPrincipalTelefone:
+        type: string
+      contatoSecundarioEmail:
+        type: string
+      contatoSecundarioNome:
+        description: Contato secundário
+        type: string
+      contatoSecundarioTelefone:
+        type: string
+      id:
+        type: string
+      inscricao_estadual:
+        type: string
+      logradouro:
+        type: string
+      nome:
+        type: string
+      numero:
+        type: string
+      observacoes:
+        type: string
+      tenantId:
+        type: string
+      tipo:
+        description: '"fisica" | "juridica"'
+        type: string
+      uf:
+        type: string
+    type: object
+  httpapi.ManufacturerInput:
+    properties:
+      ativo:
+        type: boolean
+      bairro:
+        type: string
+      cep:
+        type: string
+      cidade:
+        type: string
+      cnpj:
+        type: string
+      codigoCidade:
+        type: string
+      complemento:
+        type: string
+      contatoPrincipalEmail:
+        type: string
+      contatoPrincipalNome:
+        type: string
+      contatoPrincipalTelefone:
+        type: string
+      contatoSecundarioEmail:
+        type: string
+      contatoSecundarioNome:
+        type: string
+      contatoSecundarioTelefone:
+        type: string
+      inscricao_estadual:
+        type: string
+      logradouro:
+        type: string
+      nome:
+        type: string
+      numero:
+        type: string
+      observacoes:
+        type: string
+      tipo:
+        description: '"fisica" | "juridica"'
+        type: string
+      uf:
+        type: string
+    type: object
+  httpapi.ManufacturerUpdateInput:
+    properties:
+      ativo:
+        type: boolean
+      bairro:
+        type: string
+      cep:
+        type: string
+      cidade:
+        type: string
+      cnpj:
+        type: string
+      codigoCidade:
+        type: string
+      complemento:
+        type: string
+      contatoPrincipalEmail:
+        type: string
+      contatoPrincipalNome:
+        type: string
+      contatoPrincipalTelefone:
+        type: string
+      contatoSecundarioEmail:
+        type: string
+      contatoSecundarioNome:
+        type: string
+      contatoSecundarioTelefone:
+        type: string
+      inscricao_estadual:
+        type: string
+      logradouro:
+        type: string
+      nome:
+        type: string
+      numero:
+        type: string
+      observacoes:
+        type: string
+      tipo:
+        description: '"fisica" | "juridica"'
+        type: string
+      uf:
+        type: string
+    type: object
+  httpapi.NCM:
+    properties:
+      code:
+        type: string
+      description:
+        type: string
+      exVersion:
+        type: string
+      id:
+        type: string
+    type: object
+  httpapi.Product:
+    properties:
+      category_id:
+        type: string
+      cest_id:
+        description: FK cest_codes.id
+        type: string
+      code:
+        type: string
+      fiscal_origin:
+        description: enum fiscal_origin_type ('0'..'8')
+        type: string
+      id:
+        type: string
+      manufacturer_id:
+        type: string
+      name:
+        type: string
+      ncm_id:
+        description: FK ncm_codes.id
+        type: string
+      supplier_id:
+        type: string
+      tax_group_id:
+        description: FK tax_groups.id
+        type: string
+      tenant_id:
+        type: string
+    type: object
+  httpapi.ProductCreateInput:
+    properties:
+      category_id:
+        type: string
+      cest_id:
+        type: string
+      fiscal_origin:
+        description: se vier nil, vamos assumir "0"
+        type: string
+      manufacturer_id:
+        type: string
+      name:
+        type: string
+      ncm_id:
+        type: string
+      supplier_id:
+        type: string
+      tax_group_id:
+        type: string
+    type: object
+  httpapi.ProductUpdateInput:
+    properties:
+      category_id:
+        type: string
+      cest_id:
+        type: string
+      fiscal_origin:
+        type: string
+      manufacturer_id:
+        type: string
+      name:
+        type: string
+      ncm_id:
+        type: string
+      supplier_id:
+        type: string
+      tax_group_id:
+        type: string
+    type: object
+  httpapi.Promotion:
+    properties:
+      active:
+        type: boolean
+      adjust_cents:
+        type: boolean
+      categories:
+        items:
+          type: string
+        type: array
+      code:
+        type: string
+      end_date:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      products:
+        items:
+          type: string
+        type: array
+      start_date:
+        type: string
+      tenant_id:
+        type: string
+      type:
+        type: string
+      use_percentage:
+        type: boolean
+      value:
+        type: number
+      value_adjustment:
+        type: number
+    type: object
+  httpapi.PromotionUpdateInput:
+    properties:
+      active:
+        type: boolean
+      adjust_cents:
+        type: boolean
+      categories:
+        items:
+          type: string
+        type: array
+      end_date:
+        type: string
+      name:
+        type: string
+      products:
+        items:
+          type: string
+        type: array
+      start_date:
+        type: string
+      type:
+        type: string
+      use_percentage:
+        type: boolean
+      value:
+        type: number
+      value_adjustment:
+        type: number
+    type: object
+  httpapi.Supplier:
+    properties:
+      ativo:
+        type: boolean
+      bairro:
+        type: string
+      cep:
+        description: Contato secundário / endereço
+        type: string
+      cidade:
+        type: string
+      cnpj:
+        type: string
+      codigo:
+        type: string
+      codigo_cidade:
+        description: Localização
+        type: string
+      complemento:
+        type: string
+      cpf:
+        type: string
+      email_contato_principal:
+        type: string
+      email_contato_secundario:
+        type: string
+      id:
+        type: string
+      inscricao_estadual:
+        type: string
+      logradouro:
+        type: string
+      nome:
+        type: string
+      nome_contato_principal:
+        description: Contato principal
+        type: string
+      nome_contato_secundario:
+        type: string
+      numero:
+        type: string
+      observacoes:
+        description: Outros
+        type: string
+      rg:
+        type: string
+      telefone_contato_principal:
+        type: string
+      telefone_contato_secundario:
+        type: string
+      tenantId:
+        type: string
+      tipo:
+        description: '"fisica" | "juridica"'
+        type: string
+      uf:
+        type: string
+    type: object
+  httpapi.SupplierInput:
+    properties:
+      ativo:
+        type: boolean
+      bairro:
+        type: string
+      cep:
+        type: string
+      cidade:
+        type: string
+      cnpj:
+        type: string
+      codigo_cidade:
+        type: string
+      complemento:
+        type: string
+      cpf:
+        type: string
+      email_contato_principal:
+        type: string
+      email_contato_secundario:
+        type: string
+      inscricao_estadual:
+        type: string
+      logradouro:
+        type: string
+      nome:
+        type: string
+      nome_contato_principal:
+        type: string
+      nome_contato_secundario:
+        type: string
+      numero:
+        type: string
+      observacoes:
+        type: string
+      rg:
+        type: string
+      telefone_contato_principal:
+        type: string
+      telefone_contato_secundario:
+        type: string
+      tipo:
+        description: '"fisica" | "juridica"'
+        type: string
+      uf:
+        type: string
+    type: object
+  httpapi.SupplierUpdateInput:
+    properties:
+      ativo:
+        type: boolean
+      bairro:
+        type: string
+      cep:
+        type: string
+      cidade:
+        type: string
+      cnpj:
+        type: string
+      codigo_cidade:
+        type: string
+      complemento:
+        type: string
+      cpf:
+        type: string
+      email_contato_principal:
+        type: string
+      email_contato_secundario:
+        type: string
+      inscricao_estadual:
+        type: string
+      logradouro:
+        type: string
+      nome:
+        type: string
+      nome_contato_principal:
+        type: string
+      nome_contato_secundario:
+        type: string
+      numero:
+        type: string
+      observacoes:
+        type: string
+      rg:
+        type: string
+      telefone_contato_principal:
+        type: string
+      telefone_contato_secundario:
+        type: string
+      tipo:
+        description: '"fisica" | "juridica"'
+        type: string
+      uf:
+        type: string
+    type: object
+  httpapi.TaxGroup:
+    properties:
+      TipoProduto:
+        description: 'ex: revenda, industrializacao, servico'
+        type: string
+      active:
+        type: boolean
+      code:
+        type: string
+      createdAt:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      regime:
+        description: 'ex: simples_nacional, lucro_presumido'
+        type: string
+      tenantId:
+        type: string
+      updatedAt:
+        type: string
+      useICMSST:
+        type: boolean
+      useISS:
+        type: boolean
+      usePISCOFINS:
+        type: boolean
+    type: object
+  httpapi.TaxGroupInput:
+    properties:
+      TipoProduto:
+        type: string
+      active:
+        type: boolean
+      name:
+        type: string
+      regime:
+        type: string
+      useICMSST:
+        type: boolean
+      useISS:
+        type: boolean
+      usePISCOFINS:
+        type: boolean
+    type: object
+  httpapi.Tenant:
+    properties:
+      ativo:
+        type: boolean
+      createdAt:
+        type: string
+      document:
+        type: string
+      documentType:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      updatedAt:
+        type: string
+    type: object
+  httpapi.TenantInput:
+    properties:
+      ativo:
+        description: pointer pra diferenciar não enviado x enviado
+        type: boolean
+      document:
+        type: string
+      documentType:
+        type: string
+      name:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: API do ERP erGus (multi-tenant, categorias, produtos, etc).
+  title: erGus API
+  version: "1.0"
+paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Autentica o usuário e retorna um token de sessão
+      parameters:
+      - description: Credenciais de login
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/httpapi.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpapi.LoginResponse'
+        "400":
+          description: JSON inválido ou campos obrigatórios
+          schema:
+            type: string
+        "401":
+          description: Usuário ou senha inválidos
+          schema:
+            type: string
+        "405":
+          description: Método não permitido
+          schema:
+            type: string
+        "500":
+          description: Erro interno ao autenticar
+          schema:
+            type: string
+      summary: Login do usuário
+      tags:
+      - Auth
+  /categories:
+    get:
+      description: Lista categorias do tenant com paginação e busca opcional por código
+        ou nome
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Tenant ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Busca por code exato ou name contendo (case-insensitive)
+        in: query
+        name: q
+        type: string
+      - description: Página (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Tamanho da página (default 50, max 200)
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/httpapi.Category'
+            type: array
+        "400":
+          description: Tenant inválido
+          schema:
+            type: string
+        "401":
+          description: Não autenticado
+          schema:
+            type: string
+        "500":
+          description: Erro interno
+          schema:
+            type: string
+      summary: Lista categorias
+      tags:
+      - Categories
+  /categories/{id}:
+    delete:
+      description: Exclui uma categoria pelo ID dentro do tenant
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Tenant ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: ID da categoria
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: Sem conteúdo
+          schema:
+            type: string
+        "400":
+          description: Tenant inválido
+          schema:
+            type: string
+        "401":
+          description: Não autenticado
+          schema:
+            type: string
+        "404":
+          description: Categoria não encontrada
+          schema:
+            type: string
+        "500":
+          description: Erro interno
+          schema:
+            type: string
+      summary: Exclui categoria
+      tags:
+      - Categories
+    get:
+      description: Retorna uma categoria pelo ID dentro do tenant
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Tenant ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: ID da categoria
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpapi.Category'
+        "400":
+          description: Tenant inválido
+          schema:
+            type: string
+        "401":
+          description: Não autenticado
+          schema:
+            type: string
+        "404":
+          description: Categoria não encontrada
+          schema:
+            type: string
+        "500":
+          description: Erro interno
+          schema:
+            type: string
+      summary: Busca categoria por ID
+      tags:
+      - Categories
+    put:
+      consumes:
+      - application/json
+      description: Atualiza os campos de uma categoria pelo ID dentro do tenant
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Tenant ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: ID da categoria
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Dados para atualização (name obrigatório)
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/httpapi.CategoryUpdateInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpapi.Category'
+        "400":
+          description: Erro de validação / JSON inválido / tenant inválido
+          schema:
+            type: string
+        "401":
+          description: Não autenticado
+          schema:
+            type: string
+        "404":
+          description: Categoria não encontrada
+          schema:
+            type: string
+        "500":
+          description: Erro interno
+          schema:
+            type: string
+      summary: Atualiza categoria
+      tags:
+      - Categories
+  /categories/by-code:
+    get:
+      description: 'Retorna uma categoria pelo code (ex: CAT001) dentro do tenant'
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Tenant ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: 'Código da categoria (ex: CAT001)'
+        in: query
+        name: code
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpapi.Category'
+        "400":
+          description: Parâmetro code obrigatório / tenant inválido
+          schema:
+            type: string
+        "401":
+          description: Não autenticado
+          schema:
+            type: string
+        "404":
+          description: Categoria não encontrada
+          schema:
+            type: string
+        "500":
+          description: Erro interno
+          schema:
+            type: string
+      summary: Busca categoria por código
+      tags:
+      - Categories
+  /categories/duplicate/{id}:
+    post:
+      description: Duplica uma categoria por ID, gerando novo ID e novo code CAT###
+        no mesmo tenant
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Tenant ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: ID da categoria a duplicar
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/httpapi.Category'
+        "400":
+          description: ID não informado / tenant inválido
+          schema:
+            type: string
+        "401":
+          description: Não autenticado
+          schema:
+            type: string
+        "404":
+          description: Categoria não encontrada
+          schema:
+            type: string
+        "500":
+          description: Erro interno
+          schema:
+            type: string
+      summary: Duplica categoria
+      tags:
+      - Categories
+  /health:
+    get:
+      description: Retorna status simples da API erGus
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpapi.HealthResponse'
+      summary: Healthcheck da API
+      tags:
+      - Health
+  /lookups/cest:
+    get:
+      description: Busca CEST por code ou description (mínimo 3 caracteres). Retorna
+        até 50 itens.
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Texto para busca (mínimo 3 caracteres)
+        in: query
+        name: q
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/httpapi.CEST'
+            type: array
+        "401":
+          description: Não autenticado
+          schema:
+            type: string
+        "500":
+          description: Erro interno
+          schema:
+            type: string
+      summary: Busca CEST (lookup)
+      tags:
+      - Tax Lookups
+  /lookups/ncm:
+    get:
+      description: Busca NCM por code ou description (mínimo 3 caracteres). Retorna
+        até 50 itens.
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Texto para busca (mínimo 3 caracteres)
+        in: query
+        name: q
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/httpapi.NCM'
+            type: array
+        "401":
+          description: Não autenticado
+          schema:
+            type: string
+        "500":
+          description: Erro interno
+          schema:
+            type: string
+      summary: Busca NCM (lookup)
+      tags:
+      - Tax Lookups
+  /manufacturers:
+    get:
+      description: Lista fabricantes do tenant com paginação e busca opcional por
+        código ou nome
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Tenant ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Busca por codigo exato ou nome contendo (case-insensitive)
+        in: query
+        name: q
+        type: string
+      - description: Página (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Tamanho da página (default 50, max 200)
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/httpapi.Manufacturer'
+            type: array
+        "400":
+          description: Tenant inválido
+          schema:
+            type: string
+        "401":
+          description: Não autenticado
+          schema:
+            type: string
+        "500":
+          description: Erro interno
+          schema:
+            type: string
+      summary: Lista fabricantes
+      tags:
+      - Manufacturers
+    post:
+      consumes:
+      - application/json
+      description: Cria um novo fabricante para o tenant, gerando codigo FAB### automaticamente
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Tenant ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Dados do fabricante (nome, tipo, cidade, uf obrigatórios). ativo
+          opcional
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/httpapi.ManufacturerInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/httpapi.Manufacturer'
+        "400":
+          description: Erro de validação / JSON inválido / tenant inválido
+          schema:
+            type: string
+        "401":
+          description: Não autenticado
+          schema:
+            type: string
+        "500":
+          description: Erro interno
+          schema:
+            type: string
+      summary: Cria fabricante
+      tags:
+      - Manufacturers
+  /manufacturers/{id}:
+    delete:
+      description: Remove um fabricante pelo ID dentro do tenant
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Tenant ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: ID do fabricante
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: Sem conteúdo
+          schema:
+            type: string
+        "400":
+          description: Tenant inválido
+          schema:
+            type: string
+        "401":
+          description: Não autenticado
+          schema:
+            type: string
+        "404":
+          description: Fabricante não encontrado
+          schema:
+            type: string
+        "500":
+          description: Erro interno
+          schema:
+            type: string
+      summary: Exclui fabricante
+      tags:
+      - Manufacturers
+    get:
+      description: Retorna um fabricante específico pelo ID dentro do tenant
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Tenant ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: ID do fabricante
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpapi.Manufacturer'
+        "400":
+          description: Tenant inválido
+          schema:
+            type: string
+        "401":
+          description: Não autenticado
+          schema:
+            type: string
+        "404":
+          description: Fabricante não encontrado
+          schema:
+            type: string
+        "500":
+          description: Erro interno
+          schema:
+            type: string
+      summary: Busca fabricante por ID
+      tags:
+      - Manufacturers
+    put:
+      consumes:
+      - application/json
+      description: Atualiza os dados de um fabricante pelo ID dentro do tenant
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Tenant ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: ID do fabricante
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Dados para atualização (nome, tipo, cidade, uf obrigatórios)
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/httpapi.ManufacturerUpdateInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpapi.Manufacturer'
+        "400":
+          description: Erro de validação / JSON inválido / tenant inválido
+          schema:
+            type: string
+        "401":
+          description: Não autenticado
+          schema:
+            type: string
+        "404":
+          description: Fabricante não encontrado
+          schema:
+            type: string
+        "500":
+          description: Erro interno
+          schema:
+            type: string
+      summary: Atualiza fabricante
+      tags:
+      - Manufacturers
+  /products:
+    get:
+      description: Retorna todos os produtos do tenant ordenados por nome
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Tenant ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/httpapi.Product'
+            type: array
+        "400":
+          description: Tenant inválido
+          schema:
+            type: string
+        "401":
+          description: Não autenticado
+          schema:
+            type: string
+        "500":
+          description: Erro interno
+          schema:
+            type: string
+      summary: Lista produtos
+      tags:
+      - Products
+    post:
+      consumes:
+      - application/json
+      description: Cria um novo produto para o tenant, gerando code PROD### automaticamente
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Tenant ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Dados do produto (name obrigatório)
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/httpapi.ProductCreateInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/httpapi.Product'
+        "400":
+          description: Erro de validação / JSON inválido / tenant inválido
+          schema:
+            type: string
+        "401":
+          description: Não autenticado
+          schema:
+            type: string
+        "500":
+          description: Erro interno
+          schema:
+            type: string
+      summary: Cria produto
+      tags:
+      - Products
+  /products/{id}:
+    delete:
+      description: Remove um produto pelo ID dentro do tenant
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Tenant ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: ID do produto
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: Sem conteúdo
+          schema:
+            type: string
+        "400":
+          description: Tenant inválido
+          schema:
+            type: string
+        "401":
+          description: Não autenticado
+          schema:
+            type: string
+        "404":
+          description: Produto não encontrado
+          schema:
+            type: string
+        "500":
+          description: Erro interno
+          schema:
+            type: string
+      summary: Exclui produto
+      tags:
+      - Products
+    get:
+      description: Retorna um produto específico pelo ID dentro do tenant
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Tenant ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: ID do produto
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpapi.Product'
+        "400":
+          description: Tenant inválido
+          schema:
+            type: string
+        "401":
+          description: Não autenticado
+          schema:
+            type: string
+        "404":
+          description: Produto não encontrado
+          schema:
+            type: string
+        "500":
+          description: Erro interno
+          schema:
+            type: string
+      summary: Busca produto por ID
+      tags:
+      - Products
+    put:
+      consumes:
+      - application/json
+      description: Atualiza os dados de um produto pelo ID dentro do tenant
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Tenant ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: ID do produto
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Dados para atualização (name obrigatório)
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/httpapi.ProductUpdateInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpapi.Product'
+        "400":
+          description: Erro de validação / JSON inválido / tenant inválido
+          schema:
+            type: string
+        "401":
+          description: Não autenticado
+          schema:
+            type: string
+        "404":
+          description: Produto não encontrado
+          schema:
+            type: string
+        "500":
+          description: Erro interno
+          schema:
+            type: string
+      summary: Atualiza produto
+      tags:
+      - Products
+  /products/by-code:
+    get:
+      description: 'Retorna um produto pelo código (ex: PROD001) dentro do tenant'
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Tenant ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: 'Código do produto (ex: PROD001)'
+        in: query
+        name: code
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpapi.Product'
+        "400":
+          description: Parâmetro code obrigatório / tenant inválido
+          schema:
+            type: string
+        "401":
+          description: Não autenticado
+          schema:
+            type: string
+        "404":
+          description: Produto não encontrado
+          schema:
+            type: string
+        "500":
+          description: Erro interno
+          schema:
+            type: string
+      summary: Busca produto por código
+      tags:
+      - Products
+  /products/duplicate/{id}:
+    post:
+      description: Duplica um produto pelo ID, gerando novo ID e novo code PROD###
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Tenant ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: ID do produto a duplicar
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/httpapi.Product'
+        "400":
+          description: ID não informado / tenant inválido
+          schema:
+            type: string
+        "401":
+          description: Não autenticado
+          schema:
+            type: string
+        "404":
+          description: Produto não encontrado
+          schema:
+            type: string
+        "500":
+          description: Erro interno
+          schema:
+            type: string
+      summary: Duplica produto
+      tags:
+      - Products
+  /promotions:
+    get:
+      description: Lista promoções do tenant
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Tenant ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/httpapi.Promotion'
+            type: array
+        "400":
+          description: Tenant inválido
+          schema:
+            type: string
+        "401":
+          description: Não autenticado
+          schema:
+            type: string
+        "500":
+          description: Erro interno
+          schema:
+            type: string
+      summary: Lista promoções
+      tags:
+      - Promotions
+    post:
+      consumes:
+      - application/json
+      description: Cria uma nova promoção para o tenant, gerando code PROMO### e vinculando
+        produtos/categorias (transaction)
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Tenant ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Dados da promoção (name e type obrigatórios)
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/httpapi.Promotion'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/httpapi.Promotion'
+        "400":
+          description: Erro de validação / JSON inválido / tenant inválido
+          schema:
+            type: string
+        "401":
+          description: Não autenticado
+          schema:
+            type: string
+        "500":
+          description: Erro interno
+          schema:
+            type: string
+      summary: Cria promoção
+      tags:
+      - Promotions
+  /promotions/{id}:
+    delete:
+      description: Remove uma promoção pelo ID dentro do tenant
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Tenant ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: ID da promoção
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: Sem conteúdo
+          schema:
+            type: string
+        "400":
+          description: Tenant inválido
+          schema:
+            type: string
+        "401":
+          description: Não autenticado
+          schema:
+            type: string
+        "404":
+          description: Promoção não encontrada
+          schema:
+            type: string
+        "500":
+          description: Erro interno
+          schema:
+            type: string
+      summary: Exclui promoção
+      tags:
+      - Promotions
+    get:
+      description: Retorna uma promoção específica pelo ID dentro do tenant
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Tenant ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: ID da promoção
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpapi.Promotion'
+        "400":
+          description: Tenant inválido
+          schema:
+            type: string
+        "401":
+          description: Não autenticado
+          schema:
+            type: string
+        "404":
+          description: Promoção não encontrada
+          schema:
+            type: string
+        "500":
+          description: Erro interno
+          schema:
+            type: string
+      summary: Busca promoção por ID
+      tags:
+      - Promotions
+    put:
+      consumes:
+      - application/json
+      description: Atualiza uma promoção e recria os vínculos de produtos/categorias
+        (transaction)
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Tenant ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: ID da promoção
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Dados para atualização
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/httpapi.PromotionUpdateInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpapi.Promotion'
+        "400":
+          description: Erro de validação / JSON inválido / tenant inválido
+          schema:
+            type: string
+        "401":
+          description: Não autenticado
+          schema:
+            type: string
+        "404":
+          description: Promoção não encontrada
+          schema:
+            type: string
+        "500":
+          description: Erro interno
+          schema:
+            type: string
+      summary: Atualiza promoção
+      tags:
+      - Promotions
+  /suppliers:
+    get:
+      description: Lista fornecedores do tenant (com paginação e busca por código
+        exato ou nome contendo q)
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Tenant ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: 'Filtro: codigo exato OU nome contendo (case-insensitive)'
+        in: query
+        name: q
+        type: string
+      - description: Página (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Tamanho da página (default 50, máx 200)
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/httpapi.Supplier'
+            type: array
+        "400":
+          description: Tenant inválido
+          schema:
+            type: string
+        "401":
+          description: Não autenticado
+          schema:
+            type: string
+        "500":
+          description: Erro interno
+          schema:
+            type: string
+      summary: Lista fornecedores
+      tags:
+      - Suppliers
+    post:
+      consumes:
+      - application/json
+      description: Cria um novo fornecedor para o tenant, gerando codigo FORN###
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Tenant ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Dados do fornecedor (nome, tipo, cidade, uf obrigatórios)
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/httpapi.SupplierInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/httpapi.Supplier'
+        "400":
+          description: Erro de validação / JSON inválido / tenant inválido
+          schema:
+            type: string
+        "401":
+          description: Não autenticado
+          schema:
+            type: string
+        "500":
+          description: Erro interno
+          schema:
+            type: string
+      summary: Cria fornecedor
+      tags:
+      - Suppliers
+  /suppliers/{id}:
+    delete:
+      description: Remove um fornecedor pelo ID dentro do tenant
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Tenant ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: ID do fornecedor
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: Sem conteúdo
+          schema:
+            type: string
+        "400":
+          description: Tenant inválido
+          schema:
+            type: string
+        "401":
+          description: Não autenticado
+          schema:
+            type: string
+        "404":
+          description: Fornecedor não encontrado
+          schema:
+            type: string
+        "500":
+          description: Erro interno
+          schema:
+            type: string
+      summary: Exclui fornecedor
+      tags:
+      - Suppliers
+    get:
+      description: Retorna um fornecedor específico pelo ID dentro do tenant
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Tenant ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: ID do fornecedor
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpapi.Supplier'
+        "400":
+          description: Tenant inválido
+          schema:
+            type: string
+        "401":
+          description: Não autenticado
+          schema:
+            type: string
+        "404":
+          description: Fornecedor não encontrado
+          schema:
+            type: string
+        "500":
+          description: Erro interno
+          schema:
+            type: string
+      summary: Busca fornecedor por ID
+      tags:
+      - Suppliers
+    put:
+      consumes:
+      - application/json
+      description: Atualiza um fornecedor existente pelo ID dentro do tenant
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Tenant ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: ID do fornecedor
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Dados para atualização (nome, tipo, cidade, uf obrigatórios)
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/httpapi.SupplierUpdateInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpapi.Supplier'
+        "400":
+          description: Erro de validação / JSON inválido / tenant inválido
+          schema:
+            type: string
+        "401":
+          description: Não autenticado
+          schema:
+            type: string
+        "404":
+          description: Fornecedor não encontrado
+          schema:
+            type: string
+        "500":
+          description: Erro interno
+          schema:
+            type: string
+      summary: Atualiza fornecedor
+      tags:
+      - Suppliers
+  /tax-groups:
+    get:
+      description: Lista grupos de tributação do tenant (com paginação e busca por
+        code exato ou name contendo q)
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Tenant ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: 'Filtro: code exato OU name contendo (case-insensitive)'
+        in: query
+        name: q
+        type: string
+      - description: Página (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Tamanho da página (default 50, máx 200)
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/httpapi.TaxGroup'
+            type: array
+        "400":
+          description: Tenant inválido
+          schema:
+            type: string
+        "401":
+          description: Não autenticado
+          schema:
+            type: string
+        "500":
+          description: Erro interno
+          schema:
+            type: string
+      summary: Lista grupos de tributação
+      tags:
+      - Tax
+    post:
+      consumes:
+      - application/json
+      description: Cria um novo grupo de tributação para o tenant, gerando code TXG###
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Tenant ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: Dados do grupo (name obrigatório)
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/httpapi.TaxGroupInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/httpapi.TaxGroup'
+        "400":
+          description: Erro de validação / JSON inválido / tenant inválido
+          schema:
+            type: string
+        "401":
+          description: Não autenticado
+          schema:
+            type: string
+        "500":
+          description: Erro interno
+          schema:
+            type: string
+      summary: Cria grupo de tributação
+      tags:
+      - Tax
+  /tax-groups/{id}:
+    delete:
+      description: Remove um grupo de tributação pelo ID dentro do tenant
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Tenant ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: ID do grupo de tributação
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: Sem conteúdo
+          schema:
+            type: string
+        "400":
+          description: Tenant inválido
+          schema:
+            type: string
+        "401":
+          description: Não autenticado
+          schema:
+            type: string
+        "404":
+          description: Grupo de tributação não encontrado
+          schema:
+            type: string
+        "500":
+          description: Erro interno
+          schema:
+            type: string
+      summary: Exclui grupo de tributação
+      tags:
+      - Tax
+    get:
+      description: Retorna um grupo de tributação específico pelo ID dentro do tenant
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Tenant ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: ID do grupo de tributação
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpapi.TaxGroup'
+        "400":
+          description: Tenant inválido
+          schema:
+            type: string
+        "401":
+          description: Não autenticado
+          schema:
+            type: string
+        "404":
+          description: Grupo de tributação não encontrado
+          schema:
+            type: string
+        "500":
+          description: Erro interno
+          schema:
+            type: string
+      summary: Busca grupo de tributação por ID
+      tags:
+      - Tax
+    put:
+      consumes:
+      - application/json
+      description: Atualiza um grupo de tributação existente pelo ID dentro do tenant
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Tenant ID
+        in: header
+        name: X-Tenant-ID
+        required: true
+        type: string
+      - description: ID do grupo de tributação
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Dados para atualização (name obrigatório)
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/httpapi.TaxGroupInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpapi.TaxGroup'
+        "400":
+          description: Erro de validação / JSON inválido / tenant inválido
+          schema:
+            type: string
+        "401":
+          description: Não autenticado
+          schema:
+            type: string
+        "404":
+          description: Grupo de tributação não encontrado
+          schema:
+            type: string
+        "500":
+          description: Erro interno
+          schema:
+            type: string
+      summary: Atualiza grupo de tributação
+      tags:
+      - Tax
+  /tenants:
+    get:
+      description: Retorna lista de tenants ordenada por nome
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/httpapi.Tenant'
+            type: array
+        "401":
+          description: Não autenticado
+          schema:
+            type: string
+        "500":
+          description: Erro interno
+          schema:
+            type: string
+      summary: Lista tenants
+      tags:
+      - Tenants
+    post:
+      consumes:
+      - application/json
+      description: Cria um novo tenant (CPF/CNPJ normalizado) — apenas super admin
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Dados do tenant (name, document, documentType). ativo opcional
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/httpapi.TenantInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/httpapi.Tenant'
+        "400":
+          description: JSON inválido ou validação falhou
+          schema:
+            type: string
+        "401":
+          description: Não autenticado
+          schema:
+            type: string
+        "403":
+          description: Apenas super administrador
+          schema:
+            type: string
+        "409":
+          description: Document já cadastrado
+          schema:
+            type: string
+        "500":
+          description: Erro interno
+          schema:
+            type: string
+      summary: Cria tenant
+      tags:
+      - Tenants
+  /tenants/{id}:
+    delete:
+      description: Marca o tenant como ativo=false — apenas super admin
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: ID do tenant (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: Sem conteúdo
+          schema:
+            type: string
+        "401":
+          description: Não autenticado
+          schema:
+            type: string
+        "403":
+          description: Apenas super administrador
+          schema:
+            type: string
+        "404":
+          description: Tenant não encontrado
+          schema:
+            type: string
+        "500":
+          description: Erro interno
+          schema:
+            type: string
+      summary: Inativa tenant (soft delete)
+      tags:
+      - Tenants
+    get:
+      description: Retorna um tenant pelo ID — apenas super admin
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: ID do tenant (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpapi.Tenant'
+        "401":
+          description: Não autenticado
+          schema:
+            type: string
+        "403":
+          description: Apenas super administrador
+          schema:
+            type: string
+        "404":
+          description: Tenant não encontrado
+          schema:
+            type: string
+        "500":
+          description: Erro interno
+          schema:
+            type: string
+      summary: Busca tenant por ID
+      tags:
+      - Tenants
+    put:
+      consumes:
+      - application/json
+      description: Atualiza um tenant pelo ID — apenas super admin
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: ID do tenant (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Dados do tenant (name, document, documentType). ativo opcional
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/httpapi.TenantInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpapi.Tenant'
+        "400":
+          description: JSON inválido ou validação falhou
+          schema:
+            type: string
+        "401":
+          description: Não autenticado
+          schema:
+            type: string
+        "403":
+          description: Apenas super administrador
+          schema:
+            type: string
+        "404":
+          description: Tenant não encontrado
+          schema:
+            type: string
+        "409":
+          description: Document já cadastrado
+          schema:
+            type: string
+        "500":
+          description: Erro interno
+          schema:
+            type: string
+      summary: Atualiza tenant
+      tags:
+      - Tenants
+swagger: "2.0"
