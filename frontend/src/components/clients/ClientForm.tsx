@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Users, Check, X } from 'lucide-react';
+import { Users } from 'lucide-react';
 import { toast } from 'sonner';
-import { Switch } from '@/components/ui/switch';
+import { InputSwitch } from 'primereact/inputswitch';
 import {
   Select,
   SelectContent,
@@ -10,7 +10,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { getAuthHeaders, getBaseUrl,  } from '@/lib/utils';
+import { getAuthHeaders, getBaseUrl } from '@/lib/utils';
+import { useForm } from '@/hooks/useForm';
+import { FormField } from '@/components/ui/FormField';
+import { PageHeaderCard } from '@/components/ui/PageHeaderCard';
+import { ActionButtons } from '@/components/ui/ActionButtons';
 
 interface FormData {
   name: string;
@@ -35,9 +39,8 @@ export function ClientForm() {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEdit = !!id;
-  
-  const [formData, setFormData] = useState<FormData>(initialFormData);
-  const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
+
+  const { formData, setFormData, errors, setErrors, updateField } = useForm<FormData>(initialFormData);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(isEdit);
 
@@ -47,8 +50,6 @@ export function ClientForm() {
       setIsLoading(true);
 
       try {
-        const token = localStorage.getItem('ergus_token');
-
         const resp = await fetch(`${getBaseUrl()}/tenants/${id}`, {
           headers: getAuthHeaders(),
         });
@@ -89,32 +90,17 @@ export function ClientForm() {
     fetchClient();
   }, [isEdit, id, navigate]);
 
-  const updateField = <K extends keyof FormData>(field: K, value: FormData[K]) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: undefined }));
-    }
-  };
-
   const validate = (): boolean => {
     const newErrors: Partial<Record<keyof FormData, string>> = {};
 
-    if (!formData.name.trim()) {
-      newErrors.name = 'Nome é obrigatório';
-    }
-    if (!formData.document.trim()) {
-      newErrors.document = 'Documento é obrigatório';
-    }
-    if (!formData.document_type) {
-      newErrors.document_type = 'Tipo de documento é obrigatório';
-    }
+    if (!formData.name.trim()) newErrors.name = 'Nome é obrigatório';
+    if (!formData.document.trim()) newErrors.document = 'Documento é obrigatório';
+    if (!formData.document_type) newErrors.document_type = 'Tipo de documento é obrigatório';
 
     setErrors(newErrors);
 
     if (Object.keys(newErrors).length > 0) {
-      Object.values(newErrors).forEach(error => {
-        if (error) toast.error(error);
-      });
+      Object.values(newErrors).forEach(error => { if (error) toast.error(error); });
       return false;
     }
     return true;
@@ -125,12 +111,10 @@ export function ClientForm() {
 
     setIsSaving(true);
     try {
-      const token = localStorage.getItem('ergus_token');
-
       const payload = {
         name: formData.name.trim(),
         document: formData.document.trim(),
-        documentType: formData.document_type, // 👈 backend espera documentType
+        documentType: formData.document_type,
         ativo: formData.ativo,
       };
 
@@ -138,10 +122,8 @@ export function ClientForm() {
         ? `${getBaseUrl()}/tenants/${id}`
         : `${getBaseUrl()}/tenants`;
 
-      const method = isEdit ? 'PUT' : 'POST';
-
       const resp = await fetch(url, {
-        method,
+        method: isEdit ? 'PUT' : 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify(payload),
       });
@@ -151,12 +133,7 @@ export function ClientForm() {
         throw new Error(text || 'Erro ao salvar cliente');
       }
 
-      if (isEdit) {
-        toast.success('Cliente atualizado com sucesso');
-      } else {
-        toast.success('Cliente cadastrado com sucesso');
-      }
-
+      toast.success(isEdit ? 'Cliente atualizado com sucesso' : 'Cliente cadastrado com sucesso');
       navigate('/cadastros/admin/clientes');
     } catch (err: any) {
       console.error(err);
@@ -166,34 +143,21 @@ export function ClientForm() {
     }
   };
 
-  const handleCancel = () => {
-    navigate('/cadastros/admin/clientes');
-  };
-
   return (
     <div className="animate-fade-in max-w-3xl mx-auto">
       <div className="card-dashboard">
-        {/* Header */}
-        <div className="flex items-center gap-3 p-6 border-b border-border">
-          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-            <Users className="w-5 h-5 text-primary" />
-          </div>
-          <h1 className="text-xl font-semibold text-foreground">
-            {isEdit ? 'Editar Cliente' : 'Adicionar Cliente'}
-          </h1>
-        </div>
+        <PageHeaderCard
+          icon={<Users className="w-5 h-5 text-primary" />}
+          title={isEdit ? 'Editar Cliente' : 'Adicionar Cliente'}
+        />
 
-        {/* Form Content */}
         <div className="p-6 space-y-6">
           {isLoading ? (
             <p className="text-sm text-muted-foreground">Carregando dados do cliente...</p>
           ) : (
             <>
               <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium text-foreground mb-2">
-                    Nome do cliente <span className="text-destructive">*</span>
-                  </label>
+                <FormField label="Nome do cliente" required error={errors.name} className="col-span-2">
                   <input
                     type="text"
                     value={formData.name}
@@ -201,14 +165,11 @@ export function ClientForm() {
                     placeholder="Nome completo ou razão social"
                     className={`input-field ${errors.name ? 'error' : ''}`}
                   />
-                </div>
+                </FormField>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
-                    Documento <span className="text-destructive">*</span>
-                  </label>
+                <FormField label="Documento" required error={errors.document}>
                   <input
                     type="text"
                     value={formData.document}
@@ -216,12 +177,9 @@ export function ClientForm() {
                     placeholder="CPF ou CNPJ"
                     className={`input-field ${errors.document ? 'error' : ''}`}
                   />
-                </div>
+                </FormField>
 
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
-                    Tipo de documento <span className="text-destructive">*</span>
-                  </label>
+                <FormField label="Tipo de documento" required error={errors.document_type}>
                   <Select
                     value={formData.document_type}
                     onValueChange={(value) => updateField('document_type', value as 'CPF' | 'CNPJ')}
@@ -237,40 +195,26 @@ export function ClientForm() {
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
+                </FormField>
               </div>
 
               <div className="flex items-center gap-3">
-                <Switch
+                <InputSwitch
                   checked={formData.ativo}
-                  onCheckedChange={(checked) => updateField('ativo', checked)}
+                  onChange={(e) => updateField('ativo', e.value ?? false)}
                 />
                 <label className="text-sm font-medium text-foreground">
                   Cliente ativo
                 </label>
               </div>
 
-              {/* Actions */}
-              <div className="flex items-center justify-end gap-3 pt-6 border-t border-border">
-                <button
-                  onClick={handleCancel}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-border text-muted-foreground hover:bg-muted transition-colors"
-                  type="button"
-                >
-                  <X className="w-4 h-4" />
-                  <span>Cancelar</span>
-                </button>
-                
-                <button
-                  onClick={handleSave}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
-                  type="button"
-                  disabled={isSaving}
-                >
-                  <Check className="w-4 h-4" />
-                  <span>{isSaving ? 'Salvando...' : 'Salvar'}</span>
-                </button>
-              </div>
+              <ActionButtons
+                onCancel={() => navigate('/cadastros/admin/clientes')}
+                onConfirm={handleSave}
+                confirmLabel="Salvar"
+                isLoading={isSaving}
+                loadingLabel="Salvando..."
+              />
             </>
           )}
         </div>
